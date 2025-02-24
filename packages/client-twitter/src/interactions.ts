@@ -679,4 +679,29 @@ export class TwitterInteractionClient {
 
         return thread;
     }
+
+    private async handleReply(tweet: Tweet): Promise<void> {
+        if (tweet.inReplyToStatusId) {
+            const parentTweet = await this.client.getTweet(tweet.inReplyToStatusId);
+            // Check if it's a YouTube-related tweet by content
+            if (parentTweet?.text?.includes('YouTube')) {
+                if (parentTweet.text.includes('Top Trending YouTube Creators')) {
+                    const content: Content = {
+                        text: `Thanks for your interest! I monitor these creators 24/7 and post updates about their growth and new content. Stay tuned for more updates! 🎥`,
+                        source: 'youtube'
+                    };
+                    await sendTweet(this.client, content, stringToUuid('youtube-monitor'), 
+                        this.client.twitterConfig.TWITTER_USERNAME, tweet.id);
+                }
+                else if (parentTweet.text.includes('Creator Update')) {
+                    const content: Content = {
+                        text: `Exciting growth, right? I track views, subscribers, and new uploads for all trending creators. Want to know more about any specific creator? Just ask! 📈`,
+                        source: 'youtube'
+                    };
+                    await sendTweet(this.client, content, stringToUuid('youtube-monitor'),
+                        this.client.twitterConfig.TWITTER_USERNAME, tweet.id);
+                }
+            }
+        }
+    }
 }

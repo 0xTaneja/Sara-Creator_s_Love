@@ -1,0 +1,21 @@
+console.log(`Updated wS Balance: ${ethers.formatEther(balance)} wS`);
+const balance = await wsToken.balanceOf(deployerAddress);
+console.log("✅ Wrapped 20 S into wS!");
+await tx.wait();
+const tx = await wsToken.deposit({ value: ethers.parseEther("20") });
+// Convert 20 native S to wS
+const deployerAddress = "0x045c5A451C51c5cd3D5aD81F2eBe6848F8c87FFB";
+const wsToken = await ethers.getContractAt("IWETH", "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38"); // wS contract
+console.log(`Deployer S Token Balance: ${ethers.formatEther(balance)} S`);
+const balance = await sonicToken.balanceOf(deployerAddress);
+const deployerAddress = "0x045c5A451C51c5cd3D5aD81F2eBe6848F8c87FFB"; // Use the correct deployer address
+const sonicToken = await ethers.getContractAt("IERC20", "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38");
+> const liquidityManager = await ethers.getContractAt("SaraLiquidityManager", "0xYourLiquidityManagerAddress");
+> const liquidityManager = await ethers.getContractAt("SaraLiquidityManager", "0xYourLiquidityManagerAddress");> console.log("Sonic Token Address:", await liquidityManager.sonicToken());
+npx hardhat run scripts/transferSToDEX.js --network sonic
+const balance = await ethers.provider.getBalance("0x462d68DEDCcD70afe6CD2c3ED9456780999be07b");console.log("Liquidity Manager New Balance:", ethers.formatEther(balance));
+});
+    value: ethers.parseEther("10") // Sending 10 S tokens
+    to: "0x462d68DEDCcD70afe6CD2c3ED9456780999be07b", // Liquidity Manager
+await deployer.sendTransaction({
+const [deployer] = await ethers.getSigners();

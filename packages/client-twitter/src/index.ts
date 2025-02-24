@@ -5,6 +5,7 @@ import { TwitterInteractionClient } from "./interactions.ts";
 import { TwitterPostClient } from "./post.ts";
 import { TwitterSearchClient } from "./search.ts";
 import { TwitterSpaceClient } from "./spaces.ts";
+import { YoutubeMonitor } from "./plugins/YoutubeMonitor.ts";
 
 /**
  * A manager that orchestrates all specialized Twitter logic:
@@ -20,6 +21,7 @@ class TwitterManager {
     search: TwitterSearchClient;
     interaction: TwitterInteractionClient;
     space?: TwitterSpaceClient;
+    youtubeMonitor?: YoutubeMonitor;
 
     constructor(runtime: IAgentRuntime, twitterConfig: TwitterConfig) {
         // Pass twitterConfig to the base client
@@ -44,6 +46,11 @@ class TwitterManager {
         // Optional Spaces logic (enabled if TWITTER_SPACES_ENABLE is true)
         if (twitterConfig.TWITTER_SPACES_ENABLE) {
             this.space = new TwitterSpaceClient(this.client, runtime);
+        }
+
+        // Initialize YouTube monitor
+        if (process.env.YOUTUBE_API_KEY) {
+            this.youtubeMonitor = new YoutubeMonitor(this.client, runtime);
         }
     }
 }
@@ -74,6 +81,11 @@ export const TwitterClientInterface: Client = {
         // If Spaces are enabled, start the periodic check
         if (manager.space) {
             manager.space.startPeriodicSpaceCheck();
+        }
+
+        // Start YouTube monitor if initialized
+        if (manager.youtubeMonitor) {
+            await manager.youtubeMonitor.start();
         }
 
         return manager;
