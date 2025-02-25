@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 // Add CreatorCoin interface with the methods we need
 interface ICreatorCoin {
     function mint(address to, uint256 amount) external;
@@ -14,8 +15,11 @@ interface ICreatorCoin {
     function balanceOf(address account) external view returns (uint256);
 }
 
-contract SaraTokenRouter is Ownable {
+contract SaraTokenRouter is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
+
+    // Add withdrawal reason tracking
+    enum WithdrawReason { ADMIN_OVERRIDE, MIGRATION, CONTRACT_ERROR }
 
     address public coralToken;
     SaraLiquidityManager public liquidityManager;
@@ -63,6 +67,15 @@ contract SaraTokenRouter is Ownable {
         uint256 amountIn,
         uint256 amountOut
     );
+    event PriceDiscoveryFailed(address indexed token, uint256 timestamp);
+    event PriceDiscoveryCompleted(address indexed token, uint256 timestamp);
+    event EmergencyWithdraw(
+        address indexed token,
+        address indexed to,
+        uint256 amount,
+        uint256 timestamp,
+        WithdrawReason reason
+    );
 
     modifier whenNotPaused() {
         require(!paused, "Contract is paused");
@@ -90,27 +103,26 @@ contract SaraTokenRouter is Ownable {
         emit TokenListed(creatorToken);
     }
 
-    function updateAIRebalance(address creatorToken, uint256 newReserveS) external onlyOwner {
-        dex.liquidityManager().addLiquidity(creatorToken, 0, newReserveS);
+    /**
+     * @dev Updates AI rebalance through liquidity manager
+     */
+    function updateAIRebalance(
+        address creatorToken, 
+        uint256 newReserveS
+    ) external onlyOwner {
+        // Direct call to liquidity manager
+        liquidityManager.addLiquidity(creatorToken, 0, newReserveS);
     }
 
     /**
-     * @dev Toggles pause state with optimized checks
+     * @dev Toggles pause state with simplified logic
      */
     function togglePause() external onlyOwner {
-        // Check current state
-        bool newState = !paused;
-        
-        // Return early if no change needed
-        if (paused == newState) return;
-        
-        // Update state
-        paused = newState;
+        paused = !paused;
         lastPauseChange = block.timestamp;
         
-        // Emit event with additional tracking data
         emit PauseStateChanged(
-            newState,
+            paused,
             block.timestamp,
             msg.sender
         );
@@ -132,24 +144,28 @@ contract SaraTokenRouter is Ownable {
     }
 
     /**
-     * @dev Safely manages token approvals - only for creator tokens
+     * @dev Safely manages token approvals with optimized approval handling
      */
     function manageApproval(address token, uint256 amount) internal {
-        // Skip if it's the CORAL token (native token)
         if (token == coralToken) return;
-        
-        // Handle creator token approvals
-        if (hasOpenApproval[token]) {
-            IERC20(token).approve(address(dex.liquidityManager()), 0);
+
+        uint256 currentAllowance = IERC20(token).allowance(address(this), address(liquidityManager));
+
+        if (hasOpenApproval[token] && currentAllowance > 0) {
+            IERC20(token).approve(address(liquidityManager), 0);  // Use regular approve for resetting
             hasOpenApproval[token] = false;
             emit ApprovalRevoked(token, block.timestamp);
         }
 
-        IERC20(token).approve(address(dex.liquidityManager()), amount);
-        hasOpenApproval[token] = true;
-        lastApprovalTimestamp = block.timestamp;
-        
-        emit ApprovalGranted(token, amount, block.timestamp);
+        if (currentAllowance < amount) {
+            if (currentAllowance > 0) {
+                IERC20(token).approve(address(liquidityManager), 0);  // Use regular approve for resetting
+            }
+            IERC20(token).approve(address(liquidityManager), amount);  // Use regular approve for setting
+            hasOpenApproval[token] = true;
+            lastApprovalTimestamp = block.timestamp;
+            emit ApprovalGranted(token, amount, block.timestamp);
+        }
     }
 
     /**
@@ -166,14 +182,21 @@ contract SaraTokenRouter is Ownable {
     }
 
     /**
-     * @dev Explicit approval revocation for creator tokens
+     * @dev Explicit approval revocation with optimization
      */
     function revokeApproval(address token) public onlyOwner {
         // Skip if it's the CORAL token
         if (token == coralToken) return;
         
-        if (hasOpenApproval[token]) {
-            IERC20(token).approve(address(dex.liquidityManager()), 0);
+        // Check current allowance first
+        uint256 currentAllowance = IERC20(token).allowance(
+            address(this), 
+            address(liquidityManager)
+        );
+        
+        // Only revoke if there's an allowance
+        if (currentAllowance > 0 && hasOpenApproval[token]) {
+            IERC20(token).approve(address(liquidityManager), 0);
             hasOpenApproval[token] = false;
             emit ApprovalRevoked(token, block.timestamp);
         }
@@ -185,10 +208,7 @@ contract SaraTokenRouter is Ownable {
     function onTokenMinted(
         address token, 
         uint256 subscriberCount
-    ) external payable whenNotPaused {
-        // Check native CORAL token sent
-        require(msg.value > 0, "No CORAL tokens sent");
-        
+    ) external whenNotPaused {
         // Basic checks
         require(msg.sender == address(creatorTokenFactory), "Unauthorized");
         require(!inPriceDiscovery[token], "Token already in discovery");
@@ -198,12 +218,20 @@ contract SaraTokenRouter is Ownable {
         uint256 initialLiquidity = calculateInitialLiquidity(subscriberCount);
         require(initialLiquidity > 0, ERR_ZERO_CORAL);
         
-        // Verify correct amount of CORAL tokens sent
-        require(msg.value == initialLiquidity, "Incorrect CORAL amount sent");
+        // Check allowance before transfer
+        require(
+            IERC20(coralToken).allowance(msg.sender, address(this)) >= initialLiquidity,
+            "Insufficient CORAL allowance"
+        );
+        
+        // Transfer CORAL tokens from sender
+        IERC20(coralToken).safeTransferFrom(msg.sender, address(this), initialLiquidity);
 
-        // Start price discovery
+        // Mark token as in price discovery before external calls
         inPriceDiscovery[token] = true;
-        dex.liquidityManager().startPriceDiscovery(token, subscriberCount);
+
+        // Direct call to liquidityManager
+        liquidityManager.startPriceDiscovery(token, subscriberCount);
         
         // List token (but don't add liquidity yet)
         listNewCreatorToken(token);
@@ -219,30 +247,33 @@ contract SaraTokenRouter is Ownable {
         uint256 currentSubscribers
     ) external onlyOwner {
         require(inPriceDiscovery[token], "Token not in discovery");
-        dex.liquidityManager().recordEngagementSnapshot(token, currentSubscribers);
+        liquidityManager.recordEngagementSnapshot(token, currentSubscribers);
     }
     
     /**
-     * @dev Completes price discovery and adds initial liquidity
+     * @dev Completes price discovery with improved validation and re-entrancy protection
      */
     function completePriceDiscovery(
         address token
-    ) external onlyOwner {
+    ) external onlyOwner nonReentrant {
         require(inPriceDiscovery[token], "Token not in discovery");
-        
-        // Get current liquidity
+
         uint256 currentLiquidity = IERC20(coralToken).balanceOf(address(this));
         require(currentLiquidity > 0, ERR_ZERO_CORAL);
-        
-        // Complete discovery and set initial liquidity
-        dex.liquidityManager().completePriceDiscovery(token);
-        
-        // Verify liquidity after discovery
-        (,uint256 sReserve) = dex.liquidityManager().getReserves(token);
-        require(sReserve > 0, "Zero liquidity after discovery");
-        
-        // Mark discovery as complete
+
+        uint256 initialReserve;
+        (, initialReserve) = liquidityManager.getReserves(token);
+
+        // Update state first to prevent re-entrancy
         inPriceDiscovery[token] = false;
+
+        // External interactions after state changes (CEI pattern)
+        liquidityManager.completePriceDiscovery(token);
+
+        (, uint256 sReserve) = liquidityManager.getReserves(token);
+        require(sReserve > initialReserve, "Liquidity not added");
+
+        emit PriceDiscoveryCompleted(token, block.timestamp);
     }
 
     /**
@@ -256,25 +287,28 @@ contract SaraTokenRouter is Ownable {
     }
 
     /**
-     * @dev Swaps CORAL tokens for creator tokens
-     * @param token Creator token address
-     * @param coralAmount Amount of CORAL tokens to swap
-     * @param minAmountOut Minimum amount of creator tokens to receive
-     * @return uint256 Amount of creator tokens received
+     * @dev Swaps CORAL tokens for creator tokens with optimized approval handling
      */
     function swapCoralForToken(
         address token,
         uint256 coralAmount,
         uint256 minAmountOut
-    ) external payable returns (uint256) {
+    ) external whenNotPaused nonReentrant returns (uint256) {
         require(token != address(0), ERR_INVALID_CREATOR);
         require(coralAmount > 0, ERR_INVALID_CORAL_AMOUNT);
+        require(!inPriceDiscovery[token], "Token in price discovery");
+        require(listedTokens[token], "Token not listed");
 
-        // Handle token transfer to DEX
-        if (coralToken == address(0)) {
-            require(msg.value == coralAmount, "Incorrect CORAL token amount sent");
-        } else {
-            IERC20(coralToken).safeTransferFrom(msg.sender, address(dex), coralAmount);
+        // Transfer CORAL tokens to contract
+        IERC20(coralToken).safeTransferFrom(msg.sender, address(this), coralAmount);
+
+        // Optimize approval handling: Only update if less than required
+        uint256 currentAllowance = IERC20(coralToken).allowance(address(this), address(dex));
+        if (currentAllowance < coralAmount) {
+            if (currentAllowance > 0) {
+                IERC20(coralToken).approve(address(dex), 0);  // Use regular approve for resetting
+            }
+            IERC20(coralToken).approve(address(dex), coralAmount);  // Use regular approve for setting
         }
 
         // Execute swap through DEX
@@ -285,26 +319,38 @@ contract SaraTokenRouter is Ownable {
             500 // Default max slippage of 5%
         );
 
+        require(amountOut >= minAmountOut, "Slippage too high");
+
+        // Emit event before transfer (CEI pattern)
+        emit CoralSwappedForToken(token, coralAmount, amountOut);
+
         // Transfer creator tokens to user
         IERC20(token).safeTransfer(msg.sender, amountOut);
 
-        emit CoralSwappedForToken(token, coralAmount, amountOut);
         return amountOut;
     }
 
     /**
-     * @dev Checks if a token is native CORAL token
-     * @param token Token address to check
-     * @return bool True if token is native
+     * @dev Emergency function to withdraw stuck CORAL tokens with reason tracking
+     * @param to Address to send CORAL tokens to
+     * @param amount Amount of CORAL tokens to withdraw
+     * @param reason Reason for emergency withdrawal
      */
-    function isNativeCoral(
-        address token
-    ) public view returns (bool) {
-        return token == coralToken ||
-               token == address(0) ||
-               token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    }
+    function emergencyWithdrawCoral(
+        address to, 
+        uint256 amount,
+        WithdrawReason reason
+    ) external onlyOwner nonReentrant {
+        require(to != address(0), "Invalid address");
+        require(!paused, "Contract is paused");
 
-    // Add receive function to handle native token
-    receive() external payable {}
+        uint256 balance = IERC20(coralToken).balanceOf(address(this));
+        require(amount <= balance, "Insufficient CORAL balance");
+        
+        // Emit event before transfer (CEI pattern)
+        emit EmergencyWithdraw(coralToken, to, amount, block.timestamp, reason);
+        
+        // Transfer CORAL tokens
+        IERC20(coralToken).safeTransfer(to, amount);
+    }
 }

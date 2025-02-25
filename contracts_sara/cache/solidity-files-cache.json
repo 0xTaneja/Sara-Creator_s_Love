@@ -918,8 +918,8 @@
       ]
     },
     "/home/rushab/elizaproject/eliza/contracts_sara/contracts/SaraTokenRouter.sol": {
-      "lastModificationDate": 1740345810498,
-      "contentHash": "95e592ab9f0113921433206de7b8960f",
+      "lastModificationDate": 1740431324472,
+      "contentHash": "6aabbbf1beb24045cc1b6c9424ae4062",
       "sourceName": "contracts/SaraTokenRouter.sol",
       "solcConfig": {
         "version": "0.8.28",
@@ -951,7 +951,8 @@
         "./SaraDEX.sol",
         "@openzeppelin/contracts/access/Ownable.sol",
         "@openzeppelin/contracts/token/ERC20/IERC20.sol",
-        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol"
       ],
       "versionPragmas": [
         "^0.8.20"
@@ -962,8 +963,8 @@
       ]
     },
     "/home/rushab/elizaproject/eliza/contracts_sara/contracts/SaraDEX.sol": {
-      "lastModificationDate": 1740345863118,
-      "contentHash": "a55c8a60a9dc1c968b4b9a03a145e315",
+      "lastModificationDate": 1740431529928,
+      "contentHash": "1d9c6d69694f563f796ee336c229886d",
       "sourceName": "contracts/SaraDEX.sol",
       "solcConfig": {
         "version": "0.8.28",
@@ -994,8 +995,9 @@
       "imports": [
         "@openzeppelin/contracts/token/ERC20/IERC20.sol",
         "@openzeppelin/contracts/access/Ownable.sol",
-        "./SaraLiquidityManager.sol",
-        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"
+        "@openzeppelin/contracts/access/AccessControl.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "./SaraLiquidityManager.sol"
       ],
       "versionPragmas": [
         "^0.8.20"
@@ -1045,8 +1047,8 @@
       ]
     },
     "/home/rushab/elizaproject/eliza/contracts_sara/contracts/SaraLiquidityManager.sol": {
-      "lastModificationDate": 1740420952253,
-      "contentHash": "ff7d69f4ad1742a4bdc2c23e06e54dfb",
+      "lastModificationDate": 1740431379032,
+      "contentHash": "1bab04850e0edf59c6fa467fc2f20644",
       "sourceName": "contracts/SaraLiquidityManager.sol",
       "solcConfig": {
         "version": "0.8.28",
@@ -1077,6 +1079,7 @@
       "imports": [
         "@openzeppelin/contracts/token/ERC20/IERC20.sol",
         "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/access/AccessControl.sol",
         "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol"
       ],
       "versionPragmas": [
@@ -1204,6 +1207,44 @@
       ],
       "artifacts": [
         "IAccessControl"
+      ]
+    },
+    "/home/rushab/elizaproject/eliza/contracts_sara/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol": {
+      "lastModificationDate": 1739828142143,
+      "contentHash": "190613e556d509d9e9a0ea43dc5d891d",
+      "sourceName": "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata",
+                "storageLayout"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ReentrancyGuard"
       ]
     }
   }

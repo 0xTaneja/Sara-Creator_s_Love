@@ -2,6 +2,1059 @@
   "version": "3.4",
   "log": [
     {
+      "@openzeppelin/contracts/access/AccessControl.sol:AccessControl": {
+        "src": "@openzeppelin/contracts/access/AccessControl.sol:49",
+        "inherit": [
+          "@openzeppelin/contracts/utils/introspection/ERC165.sol:ERC165",
+          "@openzeppelin/contracts/utils/introspection/IERC165.sol:IERC165",
+          "@openzeppelin/contracts/access/IAccessControl.sol:IAccessControl",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "supportsInterface(bytes4)",
+          "hasRole(bytes32,address)",
+          "getRoleAdmin(bytes32)",
+          "grantRole(bytes32,address)",
+          "revokeRole(bytes32,address)",
+          "renounceRole(bytes32,address)"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [
+            {
+              "label": "_roles",
+              "offset": 0,
+              "slot": "0",
+              "type": "t_mapping(t_bytes32,t_struct(RoleData)21_storage)",
+              "contract": "AccessControl",
+              "src": "@openzeppelin/contracts/access/AccessControl.sol:55"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address",
+              "numberOfBytes": "20"
+            },
+            "t_bool": {
+              "label": "bool",
+              "numberOfBytes": "1"
+            },
+            "t_bytes32": {
+              "label": "bytes32",
+              "numberOfBytes": "32"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)",
+              "numberOfBytes": "32"
+            },
+            "t_mapping(t_bytes32,t_struct(RoleData)21_storage)": {
+              "label": "mapping(bytes32 => struct AccessControl.RoleData)",
+              "numberOfBytes": "32"
+            },
+            "t_struct(RoleData)21_storage": {
+              "label": "struct AccessControl.RoleData",
+              "members": [
+                {
+                  "label": "hasRole",
+                  "type": "t_mapping(t_address,t_bool)",
+                  "offset": 0,
+                  "slot": "0"
+                },
+                {
+                  "label": "adminRole",
+                  "type": "t_bytes32",
+                  "offset": 0,
+                  "slot": "1"
+                }
+              ],
+              "numberOfBytes": "64"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": true,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "@openzeppelin/contracts/access/IAccessControl.sol:IAccessControl": {
+        "src": "@openzeppelin/contracts/access/IAccessControl.sol:9",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "hasRole(bytes32,address)",
+          "getRoleAdmin(bytes32)",
+          "grantRole(bytes32,address)",
+          "revokeRole(bytes32,address)",
+          "renounceRole(bytes32,address)"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "@openzeppelin/contracts/access/Ownable.sol:Ownable": {
+        "src": "@openzeppelin/contracts/access/Ownable.sol:20",
+        "inherit": [
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [],
+        "methods": [
+          "owner()",
+          "renounceOwnership()",
+          "transferOwnership(address)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "Ownable",
+            "src": "@openzeppelin/contracts/access/Ownable.sol:38"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "label": "_owner",
+              "offset": 0,
+              "slot": "0",
+              "type": "t_address",
+              "contract": "Ownable",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address",
+              "numberOfBytes": "20"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": true,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "@openzeppelin/contracts/interfaces/IERC1363.sol:IERC1363": {
+        "src": "@openzeppelin/contracts/interfaces/IERC1363.sol:16",
+        "inherit": [
+          "@openzeppelin/contracts/utils/introspection/IERC165.sol:IERC165",
+          "@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20"
+        ],
+        "libraries": [],
+        "methods": [
+          "transferAndCall(address,uint256)",
+          "transferAndCall(address,uint256,bytes)",
+          "transferFromAndCall(address,address,uint256)",
+          "transferFromAndCall(address,address,uint256,bytes)",
+          "approveAndCall(address,uint256)",
+          "approveAndCall(address,uint256,bytes)"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20": {
+        "src": "@openzeppelin/contracts/token/ERC20/IERC20.sol:9",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "totalSupply()",
+          "balanceOf(address)",
+          "transfer(address,uint256)",
+          "allowance(address,address)",
+          "approve(address,uint256)",
+          "transferFrom(address,address,uint256)"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol:SafeERC20": {
+        "src": "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol:18",
+        "version": {
+          "withMetadata": "3df854534ae6c86b9d81a9ce68bec52eddc41b7a8f5bae46fcb0f6a970337496",
+          "withoutMetadata": "e2a89a66865458f0d9fedd4bc7faf0ee62e4c341d176ab79d29bd77a1bdfc32a",
+          "linkedWithoutMetadata": "e2a89a66865458f0d9fedd4bc7faf0ee62e4c341d176ab79d29bd77a1bdfc32a"
+        },
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "@openzeppelin/contracts/utils/Context.sol:Context": {
+        "src": "@openzeppelin/contracts/utils/Context.sol:16",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "@openzeppelin/contracts/utils/ReentrancyGuard.sol:ReentrancyGuard": {
+        "src": "@openzeppelin/contracts/utils/ReentrancyGuard.sol:25",
+        "inherit": [],
+        "libraries": [],
+        "methods": [],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "ReentrancyGuard",
+            "src": "@openzeppelin/contracts/utils/ReentrancyGuard.sol:47"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "label": "_status",
+              "offset": 0,
+              "slot": "0",
+              "type": "t_uint256",
+              "contract": "ReentrancyGuard",
+              "src": "@openzeppelin/contracts/utils/ReentrancyGuard.sol:40"
+            }
+          ],
+          "types": {
+            "t_uint256": {
+              "label": "uint256",
+              "numberOfBytes": "32"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": true,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "@openzeppelin/contracts/utils/introspection/ERC165.sol:ERC165": {
+        "src": "@openzeppelin/contracts/utils/introspection/ERC165.sol:20",
+        "inherit": [
+          "@openzeppelin/contracts/utils/introspection/IERC165.sol:IERC165"
+        ],
+        "libraries": [],
+        "methods": [
+          "supportsInterface(bytes4)"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "@openzeppelin/contracts/utils/introspection/IERC165.sol:IERC165": {
+        "src": "@openzeppelin/contracts/utils/introspection/IERC165.sol:15",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "supportsInterface(bytes4)"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "contracts/SaraDEX.sol:SaraDEX": {
+        "src": "contracts/SaraDEX.sol:10",
+        "version": {
+          "withMetadata": "55544246f1c0fb76a168ea502699c482c601140300808e63c0eb4566699add43",
+          "withoutMetadata": "55544246f1c0fb76a168ea502699c482c601140300808e63c0eb4566699add43",
+          "linkedWithoutMetadata": "55544246f1c0fb76a168ea502699c482c601140300808e63c0eb4566699add43"
+        },
+        "inherit": [
+          "@openzeppelin/contracts/access/AccessControl.sol:AccessControl",
+          "@openzeppelin/contracts/utils/introspection/ERC165.sol:ERC165",
+          "@openzeppelin/contracts/utils/introspection/IERC165.sol:IERC165",
+          "@openzeppelin/contracts/access/IAccessControl.sol:IAccessControl",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [
+          "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol:SafeERC20"
+        ],
+        "methods": [
+          "(address,address payable)",
+          "updateSwapFee(uint256)",
+          "swapCreatorTokenForCoral(address,uint256,uint256,uint256)",
+          "getAmountOut(uint256,uint256,uint256)",
+          "getAmountOutWithFees(uint256,address[])",
+          "withdrawStoredFees(address,uint256)",
+          "updateMaxSlippage(uint256)",
+          "validateSlippage(uint256)",
+          "getSlippageSettings()",
+          "isNativeCoral(address)",
+          "hasTokenBalance(address,uint256)",
+          "getWithdrawableFees(address)",
+          "checkFeesForRedeployment(address)",
+          "isValidSwapAmount(uint256)",
+          "swapCoralForCreatorToken(address,uint256,uint256,uint256)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "SaraDEX",
+            "src": "contracts/SaraDEX.sol:86"
+          },
+          {
+            "kind": "state-variable-assignment",
+            "name": "swapFee",
+            "src": "contracts/SaraDEX.sol:18"
+          },
+          {
+            "kind": "state-variable-immutable",
+            "name": "DEFAULT_MAX_SLIPPAGE",
+            "src": "contracts/SaraDEX.sol:34"
+          },
+          {
+            "kind": "state-variable-assignment",
+            "name": "ABSOLUTE_MAX_SLIPPAGE",
+            "src": "contracts/SaraDEX.sol:35"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "label": "_owner",
+              "offset": 0,
+              "slot": "0",
+              "type": "t_address",
+              "contract": "Ownable",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            },
+            {
+              "label": "_roles",
+              "offset": 0,
+              "slot": "1",
+              "type": "t_mapping(t_bytes32,t_struct(RoleData)21_storage)",
+              "contract": "AccessControl",
+              "src": "@openzeppelin/contracts/access/AccessControl.sol:55"
+            },
+            {
+              "label": "coralToken",
+              "offset": 0,
+              "slot": "2",
+              "type": "t_address",
+              "contract": "SaraDEX",
+              "src": "contracts/SaraDEX.sol:16"
+            },
+            {
+              "label": "liquidityManager",
+              "offset": 0,
+              "slot": "3",
+              "type": "t_contract(SaraLiquidityManager)5386",
+              "contract": "SaraDEX",
+              "src": "contracts/SaraDEX.sol:17"
+            },
+            {
+              "label": "swapFee",
+              "offset": 0,
+              "slot": "4",
+              "type": "t_uint256",
+              "contract": "SaraDEX",
+              "src": "contracts/SaraDEX.sol:18"
+            },
+            {
+              "label": "lastSwapTimestamp",
+              "offset": 0,
+              "slot": "5",
+              "type": "t_mapping(t_address,t_uint256)",
+              "contract": "SaraDEX",
+              "src": "contracts/SaraDEX.sol:21"
+            },
+            {
+              "label": "storedFees",
+              "offset": 0,
+              "slot": "6",
+              "type": "t_mapping(t_address,t_uint256)",
+              "contract": "SaraDEX",
+              "src": "contracts/SaraDEX.sol:26"
+            },
+            {
+              "label": "ABSOLUTE_MAX_SLIPPAGE",
+              "offset": 0,
+              "slot": "7",
+              "type": "t_uint256",
+              "contract": "SaraDEX",
+              "src": "contracts/SaraDEX.sol:35"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address",
+              "numberOfBytes": "20"
+            },
+            "t_bool": {
+              "label": "bool",
+              "numberOfBytes": "1"
+            },
+            "t_bytes32": {
+              "label": "bytes32",
+              "numberOfBytes": "32"
+            },
+            "t_contract(SaraLiquidityManager)5386": {
+              "label": "contract SaraLiquidityManager",
+              "numberOfBytes": "20"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)",
+              "numberOfBytes": "32"
+            },
+            "t_mapping(t_address,t_uint256)": {
+              "label": "mapping(address => uint256)",
+              "numberOfBytes": "32"
+            },
+            "t_mapping(t_bytes32,t_struct(RoleData)21_storage)": {
+              "label": "mapping(bytes32 => struct AccessControl.RoleData)",
+              "numberOfBytes": "32"
+            },
+            "t_struct(RoleData)21_storage": {
+              "label": "struct AccessControl.RoleData",
+              "members": [
+                {
+                  "label": "hasRole",
+                  "type": "t_mapping(t_address,t_bool)",
+                  "offset": 0,
+                  "slot": "0"
+                },
+                {
+                  "label": "adminRole",
+                  "type": "t_bytes32",
+                  "offset": 0,
+                  "slot": "1"
+                }
+              ],
+              "numberOfBytes": "64"
+            },
+            "t_uint256": {
+              "label": "uint256",
+              "numberOfBytes": "32"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": true,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "contracts/SaraLiquidityManager.sol:SaraLiquidityManager": {
+        "src": "contracts/SaraLiquidityManager.sol:9",
+        "version": {
+          "withMetadata": "4eeed9021d38789b71a0c0dc38ddd6c514ca6603fde778bc942c4dd33dfc6697",
+          "withoutMetadata": "4eeed9021d38789b71a0c0dc38ddd6c514ca6603fde778bc942c4dd33dfc6697",
+          "linkedWithoutMetadata": "4eeed9021d38789b71a0c0dc38ddd6c514ca6603fde778bc942c4dd33dfc6697"
+        },
+        "inherit": [
+          "@openzeppelin/contracts/access/AccessControl.sol:AccessControl",
+          "@openzeppelin/contracts/utils/introspection/ERC165.sol:ERC165",
+          "@openzeppelin/contracts/utils/introspection/IERC165.sol:IERC165",
+          "@openzeppelin/contracts/access/IAccessControl.sol:IAccessControl",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [
+          "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol:SafeERC20"
+        ],
+        "methods": [
+          "(address)",
+          "isNativeCoral(address)",
+          "addLiquidity(address,uint256,uint256)",
+          "removeLiquidity(address,uint256,uint256)",
+          "collectFees(address,uint256)",
+          "getReserves(address)",
+          "hasValidLiquidity(address)",
+          "withdrawFees(address,uint256)",
+          "updateEngagementMetrics(address,uint256)",
+          "getSmoothedMetrics(address)",
+          "checkAndRebalance(address)",
+          "redeployFees(address,address)",
+          "autoRedeployFees(address)",
+          "forcePoolNeedUpdate()",
+          "getPoolNeedInfo()",
+          "removePoolFromTracking(address)",
+          "getTrackedPools()",
+          "startPriceDiscovery(address,uint256)",
+          "recordEngagementSnapshot(address,uint256)",
+          "completePriceDiscovery(address)",
+          "updatePoolActivity(address,uint256)",
+          "isPoolActive(address)",
+          "getPoolActivity(address)",
+          "transferCoralToDEX(uint256)",
+          "setDEX(address)",
+          "grantDEXRole(address)",
+          "revokeDEXRole(address)",
+          "calculateInitialLiquidity(uint256,uint256)",
+          "isValidLiquidity(uint256)",
+          "setMaxLiquidity(uint256)",
+          "getLiquidityLimits()"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "SaraLiquidityManager",
+            "src": "contracts/SaraLiquidityManager.sol:174"
+          },
+          {
+            "kind": "state-variable-assignment",
+            "name": "maxLiquidityPerPool",
+            "src": "contracts/SaraLiquidityManager.sol:162"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "label": "_owner",
+              "offset": 0,
+              "slot": "0",
+              "type": "t_address",
+              "contract": "Ownable",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            },
+            {
+              "label": "_roles",
+              "offset": 0,
+              "slot": "1",
+              "type": "t_mapping(t_bytes32,t_struct(RoleData)21_storage)",
+              "contract": "AccessControl",
+              "src": "@openzeppelin/contracts/access/AccessControl.sol:55"
+            },
+            {
+              "label": "creatorTokenReserves",
+              "offset": 0,
+              "slot": "2",
+              "type": "t_mapping(t_address,t_uint256)",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:12"
+            },
+            {
+              "label": "coralReserves",
+              "offset": 0,
+              "slot": "3",
+              "type": "t_mapping(t_address,t_uint256)",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:13"
+            },
+            {
+              "label": "collectedFees",
+              "offset": 0,
+              "slot": "4",
+              "type": "t_mapping(t_address,t_uint256)",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:14"
+            },
+            {
+              "label": "coralToken",
+              "offset": 0,
+              "slot": "5",
+              "type": "t_address",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:16"
+            },
+            {
+              "label": "lastRebalanceTimestamp",
+              "offset": 0,
+              "slot": "6",
+              "type": "t_uint256",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:19"
+            },
+            {
+              "label": "tokenEngagement",
+              "offset": 0,
+              "slot": "7",
+              "type": "t_mapping(t_address,t_struct(EngagementMetrics)2939_storage)",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:29"
+            },
+            {
+              "label": "priceDiscovery",
+              "offset": 0,
+              "slot": "8",
+              "type": "t_mapping(t_address,t_struct(PriceDiscoveryData)2974_storage)",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:54"
+            },
+            {
+              "label": "trackedPools",
+              "offset": 0,
+              "slot": "9",
+              "type": "t_array(t_address)dyn_storage",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:75"
+            },
+            {
+              "label": "isTrackedPool",
+              "offset": 0,
+              "slot": "10",
+              "type": "t_mapping(t_address,t_bool)",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:76"
+            },
+            {
+              "label": "poolActivity",
+              "offset": 0,
+              "slot": "11",
+              "type": "t_mapping(t_address,t_struct(PoolActivity)3075_storage)",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:119"
+            },
+            {
+              "label": "dex",
+              "offset": 0,
+              "slot": "12",
+              "type": "t_address",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:139"
+            },
+            {
+              "label": "mostNeededPool",
+              "offset": 0,
+              "slot": "13",
+              "type": "t_struct(PoolNeedInfo)3122_storage",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:151"
+            },
+            {
+              "label": "maxLiquidityPerPool",
+              "offset": 0,
+              "slot": "16",
+              "type": "t_uint256",
+              "contract": "SaraLiquidityManager",
+              "src": "contracts/SaraLiquidityManager.sol:162"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address",
+              "numberOfBytes": "20"
+            },
+            "t_array(t_address)dyn_storage": {
+              "label": "address[]",
+              "numberOfBytes": "32"
+            },
+            "t_array(t_uint256)dyn_storage": {
+              "label": "uint256[]",
+              "numberOfBytes": "32"
+            },
+            "t_bool": {
+              "label": "bool",
+              "numberOfBytes": "1"
+            },
+            "t_bytes32": {
+              "label": "bytes32",
+              "numberOfBytes": "32"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)",
+              "numberOfBytes": "32"
+            },
+            "t_mapping(t_address,t_struct(EngagementMetrics)2939_storage)": {
+              "label": "mapping(address => struct SaraLiquidityManager.EngagementMetrics)",
+              "numberOfBytes": "32"
+            },
+            "t_mapping(t_address,t_struct(PoolActivity)3075_storage)": {
+              "label": "mapping(address => struct SaraLiquidityManager.PoolActivity)",
+              "numberOfBytes": "32"
+            },
+            "t_mapping(t_address,t_struct(PriceDiscoveryData)2974_storage)": {
+              "label": "mapping(address => struct SaraLiquidityManager.PriceDiscoveryData)",
+              "numberOfBytes": "32"
+            },
+            "t_mapping(t_address,t_uint256)": {
+              "label": "mapping(address => uint256)",
+              "numberOfBytes": "32"
+            },
+            "t_mapping(t_bytes32,t_struct(RoleData)21_storage)": {
+              "label": "mapping(bytes32 => struct AccessControl.RoleData)",
+              "numberOfBytes": "32"
+            },
+            "t_struct(EngagementMetrics)2939_storage": {
+              "label": "struct SaraLiquidityManager.EngagementMetrics",
+              "members": [
+                {
+                  "label": "lastSubscriberCount",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "0"
+                },
+                {
+                  "label": "smoothedSubscriberCount",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "1"
+                },
+                {
+                  "label": "lastUpdateTime",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "2"
+                },
+                {
+                  "label": "updateCount",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "3"
+                }
+              ],
+              "numberOfBytes": "128"
+            },
+            "t_struct(PoolActivity)3075_storage": {
+              "label": "struct SaraLiquidityManager.PoolActivity",
+              "members": [
+                {
+                  "label": "lastTradeTimestamp",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "0"
+                },
+                {
+                  "label": "tradingVolume24h",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "1"
+                },
+                {
+                  "label": "lastVolumeUpdateTime",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "2"
+                }
+              ],
+              "numberOfBytes": "96"
+            },
+            "t_struct(PoolNeedInfo)3122_storage": {
+              "label": "struct SaraLiquidityManager.PoolNeedInfo",
+              "members": [
+                {
+                  "label": "pool",
+                  "type": "t_address",
+                  "offset": 0,
+                  "slot": "0"
+                },
+                {
+                  "label": "score",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "1"
+                },
+                {
+                  "label": "lastUpdateTime",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "2"
+                }
+              ],
+              "numberOfBytes": "96"
+            },
+            "t_struct(PriceDiscoveryData)2974_storage": {
+              "label": "struct SaraLiquidityManager.PriceDiscoveryData",
+              "members": [
+                {
+                  "label": "initialSubscribers",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "0"
+                },
+                {
+                  "label": "currentSubscribers",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "1"
+                },
+                {
+                  "label": "observationStartTime",
+                  "type": "t_uint256",
+                  "offset": 0,
+                  "slot": "2"
+                },
+                {
+                  "label": "isInDiscovery",
+                  "type": "t_bool",
+                  "offset": 0,
+                  "slot": "3"
+                },
+                {
+                  "label": "engagementSnapshots",
+                  "type": "t_array(t_uint256)dyn_storage",
+                  "offset": 0,
+                  "slot": "4"
+                }
+              ],
+              "numberOfBytes": "160"
+            },
+            "t_struct(RoleData)21_storage": {
+              "label": "struct AccessControl.RoleData",
+              "members": [
+                {
+                  "label": "hasRole",
+                  "type": "t_mapping(t_address,t_bool)",
+                  "offset": 0,
+                  "slot": "0"
+                },
+                {
+                  "label": "adminRole",
+                  "type": "t_bytes32",
+                  "offset": 0,
+                  "slot": "1"
+                }
+              ],
+              "numberOfBytes": "64"
+            },
+            "t_uint256": {
+              "label": "uint256",
+              "numberOfBytes": "32"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": true,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "contracts/SaraTokenRouter.sol:ICreatorCoin": {
+        "src": "contracts/SaraTokenRouter.sol:11",
+        "inherit": [],
+        "libraries": [],
+        "methods": [
+          "mint(address,uint256)",
+          "burn(address,uint256)",
+          "totalSupply()",
+          "balanceOf(address)"
+        ],
+        "linkReferences": [],
+        "errors": [],
+        "layout": {
+          "storage": [],
+          "types": {},
+          "layoutVersion": "1.2",
+          "flat": false,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      },
+      "contracts/SaraTokenRouter.sol:SaraTokenRouter": {
+        "src": "contracts/SaraTokenRouter.sol:18",
+        "version": {
+          "withMetadata": "b7996f7a6cecb3e5b895c4628a5b77bf2095a02ad763bb6b5dbeda8a39a2f366",
+          "withoutMetadata": "d2b86ddd8ebbf6045b5cbf21c4a6ad164926822c56c403613951c500746244f0",
+          "linkedWithoutMetadata": "d2b86ddd8ebbf6045b5cbf21c4a6ad164926822c56c403613951c500746244f0"
+        },
+        "inherit": [
+          "@openzeppelin/contracts/utils/ReentrancyGuard.sol:ReentrancyGuard",
+          "@openzeppelin/contracts/access/Ownable.sol:Ownable",
+          "@openzeppelin/contracts/utils/Context.sol:Context"
+        ],
+        "libraries": [
+          "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol:SafeERC20"
+        ],
+        "methods": [
+          "(address,address,address,address)",
+          "listNewCreatorToken(address)",
+          "updateAIRebalance(address,uint256)",
+          "togglePause()",
+          "getPauseState()",
+          "revokeApproval(address)",
+          "onTokenMinted(address,uint256)",
+          "updateEngagementMetrics(address,uint256)",
+          "completePriceDiscovery(address)",
+          "calculateInitialLiquidity(uint256)",
+          "swapCoralForToken(address,uint256,uint256)",
+          "emergencyWithdrawCoral(address,uint256,uint8)"
+        ],
+        "linkReferences": [],
+        "errors": [
+          {
+            "kind": "constructor",
+            "contract": "SaraTokenRouter",
+            "src": "contracts/SaraTokenRouter.sol:85"
+          }
+        ],
+        "layout": {
+          "storage": [
+            {
+              "label": "_owner",
+              "offset": 0,
+              "slot": "0",
+              "type": "t_address",
+              "contract": "Ownable",
+              "src": "@openzeppelin/contracts/access/Ownable.sol:21"
+            },
+            {
+              "label": "_status",
+              "offset": 0,
+              "slot": "1",
+              "type": "t_uint256",
+              "contract": "ReentrancyGuard",
+              "src": "@openzeppelin/contracts/utils/ReentrancyGuard.sol:40"
+            },
+            {
+              "label": "coralToken",
+              "offset": 0,
+              "slot": "2",
+              "type": "t_address",
+              "contract": "SaraTokenRouter",
+              "src": "contracts/SaraTokenRouter.sol:24"
+            },
+            {
+              "label": "liquidityManager",
+              "offset": 0,
+              "slot": "3",
+              "type": "t_contract(SaraLiquidityManager)5386",
+              "contract": "SaraTokenRouter",
+              "src": "contracts/SaraTokenRouter.sol:25"
+            },
+            {
+              "label": "dex",
+              "offset": 0,
+              "slot": "4",
+              "type": "t_contract(SaraDEX)2894",
+              "contract": "SaraTokenRouter",
+              "src": "contracts/SaraTokenRouter.sol:26"
+            },
+            {
+              "label": "listedTokens",
+              "offset": 0,
+              "slot": "5",
+              "type": "t_mapping(t_address,t_bool)",
+              "contract": "SaraTokenRouter",
+              "src": "contracts/SaraTokenRouter.sol:27"
+            },
+            {
+              "label": "creatorTokenFactory",
+              "offset": 0,
+              "slot": "6",
+              "type": "t_contract(ICreatorCoin)5420",
+              "contract": "SaraTokenRouter",
+              "src": "contracts/SaraTokenRouter.sol:28"
+            },
+            {
+              "label": "paused",
+              "offset": 20,
+              "slot": "6",
+              "type": "t_bool",
+              "contract": "SaraTokenRouter",
+              "src": "contracts/SaraTokenRouter.sol:29"
+            },
+            {
+              "label": "inPriceDiscovery",
+              "offset": 0,
+              "slot": "7",
+              "type": "t_mapping(t_address,t_bool)",
+              "contract": "SaraTokenRouter",
+              "src": "contracts/SaraTokenRouter.sol:34"
+            },
+            {
+              "label": "hasOpenApproval",
+              "offset": 0,
+              "slot": "8",
+              "type": "t_mapping(t_address,t_bool)",
+              "contract": "SaraTokenRouter",
+              "src": "contracts/SaraTokenRouter.sol:44"
+            },
+            {
+              "label": "lastApprovalTimestamp",
+              "offset": 0,
+              "slot": "9",
+              "type": "t_uint256",
+              "contract": "SaraTokenRouter",
+              "src": "contracts/SaraTokenRouter.sol:46"
+            },
+            {
+              "label": "lastPauseChange",
+              "offset": 0,
+              "slot": "10",
+              "type": "t_uint256",
+              "contract": "SaraTokenRouter",
+              "src": "contracts/SaraTokenRouter.sol:49"
+            }
+          ],
+          "types": {
+            "t_address": {
+              "label": "address",
+              "numberOfBytes": "20"
+            },
+            "t_bool": {
+              "label": "bool",
+              "numberOfBytes": "1"
+            },
+            "t_contract(ICreatorCoin)5420": {
+              "label": "contract ICreatorCoin",
+              "numberOfBytes": "20"
+            },
+            "t_contract(SaraDEX)2894": {
+              "label": "contract SaraDEX",
+              "numberOfBytes": "20"
+            },
+            "t_contract(SaraLiquidityManager)5386": {
+              "label": "contract SaraLiquidityManager",
+              "numberOfBytes": "20"
+            },
+            "t_mapping(t_address,t_bool)": {
+              "label": "mapping(address => bool)",
+              "numberOfBytes": "32"
+            },
+            "t_uint256": {
+              "label": "uint256",
+              "numberOfBytes": "32"
+            }
+          },
+          "layoutVersion": "1.2",
+          "flat": true,
+          "namespaces": {}
+        },
+        "solcVersion": "0.8.28"
+      }
+    },
+    {
       "@openzeppelin/contracts/access/Ownable.sol:Ownable": {
         "src": "@openzeppelin/contracts/access/Ownable.sol:20",
         "inherit": [

@@ -34,9 +34,9 @@ async function main() {
         // 1. Test Creator Token Minting
         console.log("🪙 Test 1: Creator Token Minting");
         const creatorDetails = {
-            name: "ChalByeAbToHoja",
+            name: "OhSher",
             image: "https://test.image.url",
-            channelLink: "https://youtube.com/chalnaayeesassss",
+            channelLink: "https://youtube.com/OhSher",
             subscribers: 200000
         };
 
@@ -84,8 +84,8 @@ async function main() {
         console.log("\n💧 Test 3: Liquidity Management");
         
         // Check all balances
-        const userBalance = await ethers.provider.getBalance(user.address);
-        const deployerBalance = await ethers.provider.getBalance(deployer.address);
+        const userBalance = await CoralToken.balanceOf(user.address);
+        const deployerBalance = await CoralToken.balanceOf(deployer.address);
         console.log("User CORAL Balance:", ethers.formatEther(userBalance));
         console.log("Deployer CORAL Balance:", ethers.formatEther(deployerBalance));
 
@@ -93,6 +93,7 @@ async function main() {
         console.log("User's Creator Token Balance:", ethers.formatEther(creatorTokenBalance));
 
         // Transfer creator tokens to deployer for liquidity
+        await CreatorToken.connect(user).approve(deployer.address, ethers.parseEther("1000"));
         await CreatorToken.connect(user).transfer(
             deployer.address,
             ethers.parseEther("1000")
@@ -175,29 +176,37 @@ async function main() {
             const creatorTokenAmount = ethers.parseEther("10");
             const coralTokenAmount = ethers.parseEther("5");
 
-            await CreatorToken.connect(deployer).approve(
-                SARA_LIQUIDITY_MANAGER,
-                creatorTokenAmount
-            );
+            // Approve both tokens before adding liquidity
+            await CreatorToken.connect(deployer).approve(SARA_LIQUIDITY_MANAGER, creatorTokenAmount);
             console.log("✅ Approved LiquidityManager to spend Creator Tokens");
 
-            // Check LiquidityManager's CORAL balance
-            const liquidityManagerBalance = await CoralToken.balanceOf(SARA_LIQUIDITY_MANAGER);
-            console.log("Liquidity Manager Coral Balance Before Liquidity Addition:", ethers.formatEther(liquidityManagerBalance));
+            await CoralToken.connect(deployer).approve(SARA_LIQUIDITY_MANAGER, coralTokenAmount);
+            console.log("✅ Approved LiquidityManager to spend CORAL Tokens");
 
-            if (liquidityManagerBalance < coralTokenAmount) {
-                console.error(`❌ Liquidity Manager needs ${ethers.formatEther(coralTokenAmount)} CORAL tokens but only has ${ethers.formatEther(liquidityManagerBalance)}`);
+            // Check balances before adding liquidity
+            const deployerCreatorBalance = await CreatorToken.balanceOf(deployer.address);
+            const deployerCoralBalance = await CoralToken.balanceOf(deployer.address);
+            
+            console.log("\nBalances before adding liquidity:");
+            console.log("Deployer Creator Token Balance:", ethers.formatEther(deployerCreatorBalance));
+            console.log("Deployer CORAL Balance:", ethers.formatEther(deployerCoralBalance));
+
+            // Verify sufficient balances
+            if (deployerCreatorBalance < creatorTokenAmount) {
+                console.error("❌ Insufficient Creator Token balance");
+                process.exit(1);
+            }
+            if (deployerCoralBalance < coralTokenAmount) {
+                console.error("❌ Insufficient CORAL balance");
                 process.exit(1);
             }
 
+            // Add liquidity
             const addLiquidityTx = await LiquidityManager.connect(deployer).addLiquidity(
                 creatorTokenAddress,
                 creatorTokenAmount,
                 coralTokenAmount,
-                { 
-                    value: coralTokenAmount,
-                    gasLimit: 3000000 
-                }
+                { gasLimit: 3000000 }
             );
             
             console.log("Waiting for liquidity transaction...");
@@ -243,6 +252,10 @@ async function main() {
             console.log("DEX CORAL Balance:", ethers.formatEther(dexBalance));
             console.log("Liquidity Manager CORAL Balance:", ethers.formatEther(lmBalance));
 
+            // Approve DEX to spend Creator tokens before swap
+            await CreatorToken.connect(user).approve(SARA_DEX, swapAmount);
+            console.log("✅ Approved DEX to spend Creator Tokens for swap");
+
             // Perform swap
             console.log("\nAttempting swap...");
             const swapTx = await DEX.connect(user).swapCreatorTokenForCoral(
@@ -257,8 +270,8 @@ async function main() {
             console.log("✅ Swap successful! Transaction:", receipt.hash);
 
             // Check balances after swap
-            const newDexBalance = await ethers.provider.getBalance(SARA_DEX);
-            const newLmBalance = await ethers.provider.getBalance(SARA_LIQUIDITY_MANAGER);
+            const newDexBalance = await CoralToken.balanceOf(SARA_DEX);
+            const newLmBalance = await CoralToken.balanceOf(SARA_LIQUIDITY_MANAGER);
             console.log("\nBalances after swap:");
             console.log("DEX CORAL Balance:", ethers.formatEther(newDexBalance));
             console.log("Liquidity Manager CORAL Balance:", ethers.formatEther(newLmBalance));

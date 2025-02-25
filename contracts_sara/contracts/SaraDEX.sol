@@ -3,11 +3,15 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./SaraLiquidityManager.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./SaraLiquidityManager.sol";
 
-contract SaraDEX is Ownable {
+contract SaraDEX is Ownable, AccessControl {
     using SafeERC20 for IERC20;
+
+    // Add role identifier for liquidity managers
+    bytes32 public constant LIQUIDITY_MANAGER_ROLE = keccak256("LIQUIDITY_MANAGER_ROLE");
 
     address public coralToken; // Address of Coral's native token (CORAL)
     SaraLiquidityManager public liquidityManager;
@@ -82,9 +86,28 @@ contract SaraDEX is Ownable {
     constructor(
         address _coralToken, 
         address payable _liquidityManager
-    ) Ownable(msg.sender) {  // Pass msg.sender to Ownable constructor
+    ) Ownable(msg.sender) {
         coralToken = _coralToken;
         liquidityManager = SaraLiquidityManager(_liquidityManager);
+        
+        // Setup initial roles
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(LIQUIDITY_MANAGER_ROLE, _liquidityManager);
+    }
+
+    // Add modifier for liquidity manager role
+    modifier onlyLiquidityManager() {
+        require(hasRole(LIQUIDITY_MANAGER_ROLE, msg.sender), "Not a liquidity manager");
+        _;
+    }
+
+    // Add fee update function
+    function updateSwapFee(uint256 newFee) external onlyLiquidityManager {
+        require(newFee <= 100, "Fee cannot exceed 1%");
+        require(newFee != swapFee, "New fee same as current");
+        uint256 oldFee = swapFee;
+        swapFee = newFee;
+        emit SwapFeeUpdated(oldFee, newFee, msg.sender);
     }
 
     function swapCreatorTokenForCoral(
@@ -266,18 +289,12 @@ contract SaraDEX is Ownable {
         require(amountIn > 0, "Invalid input amount");
         require(reserveIn > 0 && reserveOut > 0, "Invalid reserves");
         require(amountIn <= reserveIn, "Swap amount exceeds reserves");
-
-        // Add minimum swap amount check
         require(amountIn >= MIN_SWAP_AMOUNT, "Amount below minimum");
 
-        // Check for potential overflow
+        // Check for potential overflow - simplified
         require(
             amountIn <= type(uint256).max / 997,
             "Amount too large for fee calculation"
-        );
-        require(
-            reserveOut <= type(uint256).max / (amountIn * 997),
-            "Potential overflow in calculation"
         );
 
         // Calculate with fee (0.3% fee = 997/1000)
@@ -421,11 +438,8 @@ contract SaraDEX is Ownable {
      * @param token The token address to check
      * @return bool True if token is native CORAL and has balance
      */
-    function isNativeCoral(address token) public view returns (bool) {
-        bool isNative = token == coralToken || 
-                       token == address(0) || 
-                       token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-        return isNative && address(this).balance > 0;
+    function isNativeCoral(address token) public pure returns (bool) {
+        return false; // CORAL is always ERC20
     }
 
     /**
@@ -435,108 +449,7 @@ contract SaraDEX is Ownable {
      * @return bool True if contract has sufficient balance
      */
     function hasTokenBalance(address token, uint256 amount) public view returns (bool) {
-        if (token == coralToken) {
-            return isNativeCoral(token) ? 
-                address(this).balance >= amount : 
-                IERC20(token).balanceOf(address(this)) >= amount;
-        }
         return IERC20(token).balanceOf(address(this)) >= amount;
-    }
-
-    // Add receive function to accept native CORAL token
-    receive() external payable {}
-
-    /**
-     * @dev Swaps CORAL tokens for Creator tokens
-     * @param creatorToken The creator token to receive
-     * @param amountIn Amount of CORAL tokens to swap
-     * @param minAmountOut Minimum amount of creator tokens to receive
-     * @param maxSlippage Maximum allowed slippage in basis points (e.g., 500 = 5%)
-     */
-    function swapCoralForCreatorToken(
-        address creatorToken,
-        uint256 amountIn,
-        uint256 minAmountOut,
-        uint256 maxSlippage
-    ) external payable returns (uint256) {
-        // Anti-bot check
-        require(block.timestamp >= lastSwapTimestamp[msg.sender] + MIN_TIME_BETWEEN_SWAPS, "Too many swaps");
-        
-        // Validate and set slippage
-        require(maxSlippage <= ABSOLUTE_MAX_SLIPPAGE, "Slippage too high");
-        uint256 slippageUsed = maxSlippage > 0 ? maxSlippage : DEFAULT_MAX_SLIPPAGE;
-        require(slippageUsed >= DEFAULT_MAX_SLIPPAGE, "Invalid slippage");
-        
-        // Get reserves
-        (uint256 reserveCreator, uint256 reserveCoral) = liquidityManager.getReserves(creatorToken);
-        // Check both CORAL and creator token liquidity
-        require(
-            hasTokenBalance(coralToken, amountIn),
-            "No CORAL liquidity available"
-        );
-        require(amountIn <= reserveCoral, "Insufficient CORAL in pool");
-        require(reserveCreator > 0, "No creator token liquidity");
-        
-        // Large swap protection
-        require(amountIn <= reserveCoral * MAX_SWAP_AMOUNT_PERCENT / 100, "Swap too large");
-
-        // Calculate expected output with fees
-        uint256 expectedOutput = getAmountOut(amountIn, reserveCoral, reserveCreator);
-        uint256 fee = (expectedOutput * swapFee) / 10000;
-        uint256 amountOutAfterFee = expectedOutput - fee;
-        
-        // Validate slippage with defined slippageUsed
-        uint256 minAcceptableOutput = amountOutAfterFee - ((amountOutAfterFee * slippageUsed) / 10000);
-        require(minAcceptableOutput >= minAmountOut, "Slippage too high");
-        
-        // Handle CORAL token transfer based on type
-        if (isNativeCoral(coralToken)) {
-            require(msg.value == amountIn, "Must send exact amount of native CORAL");
-        } else {
-            // Check balance and allowance
-            require(
-                IERC20(coralToken).balanceOf(msg.sender) >= amountIn,
-                ERR_INSUFFICIENT_CORAL
-            );
-            require(
-                IERC20(coralToken).allowance(msg.sender, address(this)) >= amountIn,
-                "Insufficient CORAL token allowance"
-            );
-            IERC20(coralToken).safeTransferFrom(msg.sender, address(this), amountIn);
-        }
-        
-        // Transfer creator tokens to user
-        require(
-            IERC20(creatorToken).balanceOf(address(this)) >= amountOutAfterFee,
-            "Insufficient creator token balance"
-        );
-        IERC20(creatorToken).safeTransfer(msg.sender, amountOutAfterFee);
-        
-        // Store fees
-        storeFees(creatorToken, fee);
-        
-        // Update state and emit event
-        lastSwapTimestamp[msg.sender] = block.timestamp;
-        emit CoralSwapExecuted(msg.sender, creatorToken, amountIn, amountOutAfterFee, fee);
-        return amountOutAfterFee;
-    }
-
-    // Add helper function to check native CORAL balance
-    /**
-     * @dev Returns the contract's native CORAL balance
-     * @return uint256 The contract's native CORAL balance
-     */
-    function getNativeCoralBalance() public view returns (uint256) {
-        return address(this).balance;
-    }
-
-    // Add helper function to check if contract can handle native CORAL
-    /**
-     * @dev Checks if contract can handle native CORAL transactions
-     * @return bool True if contract can handle native CORAL
-     */
-    function canHandleNativeCoral() public view returns (bool) {
-        return isNativeCoral(coralToken);
     }
 
     /**
@@ -546,47 +459,14 @@ contract SaraDEX is Ownable {
      * @return bool True if transfer was successful
      */
     function safeTransferCoral(address to, uint256 amount) internal returns (bool) {
-        // Input validation
         require(to != address(0), "Invalid recipient");
         require(amount > 0, "Invalid amount");
-        require(amount <= type(uint256).max, "Amount too large");
-
-        if (isNativeCoral(coralToken)) {
-            // Check native CORAL balance
-            uint256 contractBalance = address(this).balance;
-            require(contractBalance >= amount, ERR_INSUFFICIENT_CORAL);
-            
-            // Cache balance before transfer for verification
-            uint256 preBalance = contractBalance;
-            
-            // Attempt native transfer
-            (bool success,) = payable(to).call{value: amount}("");
-            require(success, ERR_FAILED_CORAL_TRANSFER);
-            
-            // Verify transfer amount
-            require(
-                address(this).balance == preBalance - amount,
-                "Transfer amount mismatch"
-            );
-        } else {
-            // Check ERC20 CORAL balance
-            uint256 erc20Balance = IERC20(coralToken).balanceOf(address(this));
-            require(erc20Balance >= amount, ERR_INSUFFICIENT_CORAL);
-            
-            uint256 preBalance = erc20Balance;
-            
-            // Use regular safeTransfer since it already has revert handling
-            IERC20(coralToken).safeTransfer(to, amount);
-            
-            // Verify transfer
-            uint256 postBalance = IERC20(coralToken).balanceOf(address(this));
-            require(
-                postBalance == preBalance - amount,
-                "Transfer amount mismatch"
-            );
-        }
-
-        // Emit event for tracking
+        
+        uint256 balance = IERC20(coralToken).balanceOf(address(this));
+        require(balance >= amount, ERR_INSUFFICIENT_CORAL);
+        
+        IERC20(coralToken).safeTransfer(to, amount);
+        
         emit CoralTransferred(to, amount, block.timestamp);
         return true;
     }
@@ -598,9 +478,8 @@ contract SaraDEX is Ownable {
         uint256 timestamp
     );
 
-    // Update fee storage logic
+    // Update fee storage logic with improved event emission
     function storeFees(address token, uint256 fee) internal {
-        // Check maximum fee storage
         require(
             storedFees[token] + fee <= MAX_FEE_STORAGE,
             "Fee storage limit reached"
@@ -608,13 +487,22 @@ contract SaraDEX is Ownable {
 
         storedFees[token] += fee;
         
-        // Check for auto fee redeployment
         if (storedFees[token] >= AUTO_REDEPLOY_THRESHOLD) {
             uint256 currentFees = storedFees[token];
+            uint256 preRedeployBalance = storedFees[token];
 
             try liquidityManager.autoRedeployFees(token) {
-                storedFees[token] = 0;
-                emit CoralFeesRedeployed(token, currentFees);
+                uint256 remainingFees = storedFees[token];
+                if (remainingFees == 0) {
+                    emit CoralFeesRedeployed(token, currentFees);
+                } else {
+                    // Emit partial redeployment events
+                    uint256 redeployedAmount = preRedeployBalance - remainingFees;
+                    if (redeployedAmount > 0) {
+                        emit CoralFeesRedeployed(token, redeployedAmount);
+                    }
+                    emit CoralAutoRedeploymentFailed(token, remainingFees);
+                }
             } catch {
                 emit CoralAutoRedeploymentFailed(token, currentFees);
             }
@@ -681,5 +569,59 @@ contract SaraDEX is Ownable {
     function isValidSwapAmount(uint256 amount) public pure returns (bool) {
         return amount >= MIN_SWAP_AMOUNT && 
                amount <= MAX_SINGLE_SWAP;
+    }
+
+    // Add event for fee updates
+    event SwapFeeUpdated(
+        uint256 oldFee,
+        uint256 newFee,
+        address indexed updater
+    );
+
+    /**
+     * @dev Swaps CORAL tokens for Creator tokens
+     */
+    function swapCoralForCreatorToken(
+        address creatorToken,
+        uint256 amountIn,
+        uint256 minAmountOut,
+        uint256 maxSlippage
+    ) external returns (uint256) {
+        // Anti-bot check
+        require(block.timestamp >= lastSwapTimestamp[msg.sender] + MIN_TIME_BETWEEN_SWAPS, "Too many swaps");
+        
+        // Transfer CORAL tokens to this contract
+        IERC20(coralToken).safeTransferFrom(msg.sender, address(this), amountIn);
+        
+        // Validate and set slippage
+        require(maxSlippage <= ABSOLUTE_MAX_SLIPPAGE, "Slippage too high");
+        uint256 slippageUsed = maxSlippage > 0 ? maxSlippage : DEFAULT_MAX_SLIPPAGE;
+        require(slippageUsed >= DEFAULT_MAX_SLIPPAGE, "Invalid slippage");
+        
+        // Get reserves
+        (uint256 reserveCreator, uint256 reserveCoral) = liquidityManager.getReserves(creatorToken);
+        
+        // Check liquidity
+        require(reserveCreator > 0 && reserveCoral > 0, "Insufficient liquidity");
+        require(amountIn <= reserveCoral * MAX_SWAP_AMOUNT_PERCENT / 100, "Swap too large");
+
+        // Calculate amounts
+        uint256 amountOut = getAmountOut(amountIn, reserveCoral, reserveCreator);
+        require(amountOut >= minAmountOut, "Insufficient output amount");
+
+        // Calculate and store fee
+        uint256 fee = (amountOut * swapFee) / 10000;
+        uint256 amountOutAfterFee = amountOut - fee;
+        storeFees(creatorToken, fee);
+
+        // Update last swap timestamp
+        lastSwapTimestamp[msg.sender] = block.timestamp;
+
+        // Transfer creator tokens to user
+        IERC20(creatorToken).safeTransfer(msg.sender, amountOutAfterFee);
+
+        emit CoralSwapExecuted(msg.sender, creatorToken, amountIn, amountOutAfterFee, fee);
+        
+        return amountOutAfterFee;
     }
 }
