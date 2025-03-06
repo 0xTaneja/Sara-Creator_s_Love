@@ -2,11 +2,14 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract SaraLiquidityManager is Ownable, AccessControl {
+contract SaraLiquidityManager is Ownable, AccessControl, ReentrancyGuard, ERC20 {
     using SafeERC20 for IERC20;
 
     mapping(address => uint256) public creatorTokenReserves;
@@ -31,6 +34,13 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     // Add constant for minimum liquidity
     uint256 public constant MIN_LIQUIDITY = 10 * 1e18; // 10 CORAL minimum liquidity
 
+    // Add event declaration for ReservesUpdated
+    event ReservesUpdated(
+        address indexed token,
+        uint256 creatorReserve,
+        uint256 coralReserve
+    );
+
     // Add new event
     event FeesRedeployed(
         address indexed token,
@@ -54,8 +64,8 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     mapping(address => PriceDiscoveryData) public priceDiscovery;
     
     // Constants for price discovery
-    uint256 public constant DISCOVERY_PERIOD = 2 minutes;
-    uint256 public constant SNAPSHOT_INTERVAL = 20 seconds;
+    uint256 public DISCOVERY_PERIOD;
+    uint256 public SNAPSHOT_INTERVAL;
     uint256 public constant MAX_SNAPSHOTS = 6; // 2 minutes / 20 seconds
     
     // Events
@@ -125,8 +135,7 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     // Add event for activity updates
     event PoolActivityUpdated(
         address indexed pool,
-        uint256 volume24h,
-        uint256 timestamp
+        uint256 volume24h
     );
 
     // Add error messages as constants
@@ -140,6 +149,7 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     
     // Add role for DEX
     bytes32 public constant DEX_ROLE = keccak256("DEX_ROLE");
+    bytes32 public constant BACKUP_DEX_ROLE = keccak256("BACKUP_DEX_ROLE");
 
     // Add state variables for tracking most needy pool
     struct PoolNeedInfo {
@@ -167,19 +177,118 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     // Add event for max liquidity updates
     event MaxLiquidityUpdated(
         uint256 oldMax,
-        uint256 newMax,
+        uint256 newMax
+    );
+
+    // Consolidate debug events into focused categories
+    event LiquidityOperation(
+        string operation,  // "add", "remove", "rebalance"
+        address indexed token,
+        uint256 amount,
         uint256 timestamp
     );
 
-    constructor(address _coralToken) Ownable(msg.sender) {
+    event PoolOperation(
+        string operation,  // "add", "remove", "update"
+        address indexed pool,
+        uint256 score,
+        uint256 timestamp
+    );
+
+    event FeeOperation(
+        string operation,  // "collect", "withdraw", "redeploy"
+        address indexed token,
+        uint256 amount,
+        address indexed target
+    );
+
+    // Replace multiple debug events with focused metrics
+    event PoolMetrics(
+        address indexed pool,
+        uint256 liquidity,
+        uint256 volume24h,
+        uint256 score
+    );
+
+    event RebalanceMetrics(
+        address indexed token,
+        uint256 oldLiquidity,
+        uint256 newLiquidity,
+        string reason
+    );
+
+    // Add constant for absolute maximum liquidity
+    uint256 public constant ABSOLUTE_MAX_LIQUIDITY = 100000 * 1e18; // 100,000 CORAL maximum
+
+    // Add constant for safety buffer
+    uint256 private constant LIQUIDITY_SAFETY_BUFFER = 50; // 50% buffer
+
+    // Add struct for historical volume data
+    struct VolumeHistory {
+        uint256 lastRecordedVolume;
+        uint256 timestamp;
+    }
+
+    // Add mapping for historical data
+    mapping(address => VolumeHistory[]) public volumeHistory;
+    uint256 public constant MAX_HISTORY_ENTRIES = 30; // Keep 30 days of history
+
+    // Add mapping for whitelisted withdrawal addresses
+    mapping(address => bool) public whitelistedWithdrawAddresses;
+
+    // Add events for whitelist management
+    event WithdrawAddressWhitelisted(address indexed account, uint256 timestamp);
+    event WithdrawAddressRemoved(address indexed account, uint256 timestamp);
+
+    // Add struct for pool priority queue
+    struct PoolScore {
+        address pool;
+        uint256 score;
+        uint256 lastUpdateTime;
+    }
+
+    // Add priority queue for pool tracking
+    PoolScore[] private poolScores;
+    mapping(address => uint256) private poolScoreIndex;
+    uint256 private constant BATCH_SIZE = 10;
+    uint256 private lastProcessedIndex;
+
+    // Add constant for minimum change threshold
+    uint256 private constant REBALANCE_MIN_CHANGE = 10; // 10% minimum change
+
+    // Add struct for sorted pool tracking
+    struct SortedPool {
+        address pool;
+        uint256 score;
+        uint256 lastUpdateTime;
+        uint256 nextIndex;  // For linked list implementation
+        uint256 prevIndex;  // For linked list implementation
+    }
+
+    // Add sorted pool tracking
+    mapping(uint256 => SortedPool) public sortedPools;
+    uint256 public topPoolIndex;
+    uint256 public poolCount;
+
+    constructor(address _coralToken) Ownable(msg.sender) ERC20("Sara Liquidity Token", "SLT") {
         coralToken = _coralToken;
+        
+        // Setup initial roles
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        
+        // Initialize price discovery settings with shorter intervals for testing
+        DISCOVERY_PERIOD = 2 minutes;  // Changed from 1 days to 2 minutes
+        SNAPSHOT_INTERVAL = 20 seconds;  // Changed from 4 hours to 20 seconds
+        
+        // Set initial max liquidity per pool
+        maxLiquidityPerPool = 10000 * 1e18; // 10,000 CORAL tokens
     }
 
     event LiquidityAdded(
         address indexed creatorToken, 
         uint256 amountCreator, 
-        uint256 amountCoral
+        uint256 amountCoral,
+        uint256 liquidity
     );
     event LiquidityRemoved(
         address indexed creatorToken, 
@@ -193,134 +302,177 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     );
     event FeesWithdrawn(address indexed token, uint256 amount);
 
-    // Add function to track new pool
-    function addPoolToTracking(address pool) internal {
-        if (!isTrackedPool[pool]) {
-            trackedPools.push(pool);
-            isTrackedPool[pool] = true;
-            emit PoolTracked(pool);
-        }
-    }
-
     /**
-     * @dev Checks if a token is native CORAL token
-     * @param token The token address to check
-     * @return bool Always returns false since CORAL is ERC-20
+     * @dev Adds a new pool to tracking
+     * @param pool The pool address to track
      */
-    function isNativeCoral(address token) public pure returns (bool) {
-        return false; // CORAL is ERC-20, so never treat it as native
+    function addPoolToTracking(address pool) external onlyOwner {
+        require(pool != address(0), "Invalid pool address");
+        require(!isTrackedPool[pool], "Pool already tracked");
+        
+        // Verify price discovery is complete
+        require(
+            !priceDiscovery[pool].isInDiscovery,
+            "Price discovery not complete"
+        );
+
+            isTrackedPool[pool] = true;
+        trackedPools.push(pool);
+        
+            emit PoolTracked(pool);
     }
 
     /**
-     * @dev Adds liquidity to a pool with proper validation
+     * @dev Checks if a token is the CORAL token
+     * @param token The token address to check
+     * @return bool True if token is CORAL, false otherwise
+     */
+    function isCoralToken(address token) public view returns (bool) {
+        return token == coralToken;
+    }
+
+    function _updateReserves(
+        address token,
+        uint256 creatorReserve,
+        uint256 coralReserve
+    ) internal {
+        creatorTokenReserves[token] = creatorReserve;
+        coralReserves[token] = coralReserve;
+        // Add event declaration at top of contract
+        emit ReservesUpdated(token, creatorReserve, coralReserve);
+    }
+
+    /**
+     * @dev Calculates the amount of liquidity tokens to mint
+     * @param amountCreator Amount of creator tokens being added
+     * @param amountCoral Amount of CORAL tokens being added
+     * @param creatorReserve Current creator token reserve
+     * @param coralReserve Current CORAL token reserve
+     * @return liquidity Amount of LP tokens to mint
+     */
+    function calculateLiquidity(
+        uint256 amountCreator,
+        uint256 amountCoral,
+        uint256 creatorReserve,
+        uint256 coralReserve
+    ) internal view returns (uint256 liquidity) {
+        if (creatorReserve == 0 && coralReserve == 0) {
+            // Initial liquidity provision
+            liquidity = Math.sqrt(amountCreator * amountCoral);
+        } else {
+            // Subsequent liquidity provision
+            uint256 liquidityCreator = (amountCreator * totalSupply()) / creatorReserve;
+            uint256 liquidityCoral = (amountCoral * totalSupply()) / coralReserve;
+            liquidity = Math.min(liquidityCreator, liquidityCoral);
+        }
+        return liquidity;
+    }
+
+    /**
+     * @dev Adds liquidity to the pool
      * @param creatorToken The creator token address
      * @param amountCreator Amount of creator tokens to add
      * @param amountCoral Amount of CORAL tokens to add
+     * @return liquidity Amount of LP tokens minted
      */
     function addLiquidity(
-        address creatorToken, 
-        uint256 amountCreator, 
+        address creatorToken,
+        uint256 amountCreator,
         uint256 amountCoral
-    ) external {
-        require(amountCreator > 0 && amountCoral > 0, "Invalid liquidity amounts");
+    ) external nonReentrant returns (uint256 liquidity) {
         require(creatorToken != address(0), "Invalid creator token");
+        require(amountCreator > 0 && amountCoral > 0, "Zero amounts not allowed");
+        require(amountCoral >= MIN_LIQUIDITY, "CORAL amount below minimum liquidity");
+        require(isTrackedPool[creatorToken], "Pool not tracked");
 
-        // Check if this is the first liquidity addition
-        bool isInitialLiquidity = creatorTokenReserves[creatorToken] == 0 && 
-                                 coralReserves[creatorToken] == 0;
+        // Get current reserves
+        (uint256 currentCreatorReserve, uint256 currentCoralReserve) = getReserves(creatorToken);
 
-        // Enforce minimum liquidity for subsequent additions
-        if (!isInitialLiquidity) {
-            require(
-                creatorTokenReserves[creatorToken] + amountCreator >= MIN_LIQUIDITY &&
-                coralReserves[creatorToken] + amountCoral >= MIN_LIQUIDITY,
-                "Below minimum liquidity"
-            );
+        // Check max liquidity limit
+        uint256 remainingLiquidity = maxLiquidityPerPool - currentCoralReserve;
+        if (amountCoral > remainingLiquidity) {
+            emit LiquidityOperation("liquidity_adjustment", creatorToken, amountCoral, remainingLiquidity);
+            amountCoral = remainingLiquidity;
+            amountCreator = remainingLiquidity; // Maintain 1:1 ratio
         }
 
-        // ✅ Add maximum liquidity check
-        require(
-            creatorTokenReserves[creatorToken] + amountCreator <= maxLiquidityPerPool &&
-            coralReserves[creatorToken] + amountCoral <= maxLiquidityPerPool,
-            "Exceeds maximum liquidity per pool"
-        );
+        require(amountCoral <= maxLiquidityPerPool, "CORAL amount above maximum liquidity");
+        require(currentCoralReserve + amountCoral <= maxLiquidityPerPool, "Total liquidity would exceed maximum");
 
-        // Transfer creator tokens to this contract
+        // Transfer tokens to this contract
         IERC20(creatorToken).safeTransferFrom(msg.sender, address(this), amountCreator);
-
-        // Transfer CORAL tokens (always ERC20)
         IERC20(coralToken).safeTransferFrom(msg.sender, address(this), amountCoral);
 
-        // Update reserves
-        creatorTokenReserves[creatorToken] += amountCreator;
-        coralReserves[creatorToken] += amountCoral;
+        // Calculate liquidity tokens to mint
+        liquidity = calculateLiquidity(amountCreator, amountCoral, currentCreatorReserve, currentCoralReserve);
+        require(liquidity > 0, "Insufficient liquidity minted");
 
-        // Add pool to tracking if needed
-        addPoolToTracking(creatorToken);
-        
-        emit LiquidityAdded(creatorToken, amountCreator, amountCoral);
+        // Update reserves and mint LP tokens
+        _updateReserves(creatorToken, currentCreatorReserve + amountCreator, currentCoralReserve + amountCoral);
+        _mint(msg.sender, liquidity);
+
+        emit LiquidityAdded(creatorToken, amountCreator, amountCoral, liquidity);
+        return liquidity;
     }
 
-    // Update removeLiquidity to handle CORAL as ERC20
+    /**
+     * @dev Gets the current reserves for a creator token pool
+     * @param creatorToken The creator token address
+     * @return creatorReserve Amount of creator tokens in reserve
+     * @return coralReserve Amount of CORAL tokens in reserve
+     */
+    function getReserves(
+        address creatorToken
+    ) public view returns (
+        uint256 creatorReserve,
+        uint256 coralReserve
+    ) {
+        require(creatorToken != address(0), "Invalid creator token");
+        return (creatorTokenReserves[creatorToken], coralReserves[creatorToken]);
+    }
+
+    /**
+     * @dev Removes liquidity from a pool
+     */
     function removeLiquidity(
         address creatorToken, 
         uint256 amountCreator, 
         uint256 amountCoral
     ) external onlyOwner {
-        // Basic checks
-        require(creatorTokenReserves[creatorToken] >= amountCreator, "Insufficient creator liquidity");
-        require(coralReserves[creatorToken] >= amountCoral, "Insufficient CORAL liquidity");
+        // Calculate new reserves first
+        uint256 newCreatorReserve = creatorTokenReserves[creatorToken] - amountCreator;
+        uint256 newCoralReserve = coralReserves[creatorToken] - amountCoral;
 
-        // Add minimum liquidity check
-        require(
-            creatorTokenReserves[creatorToken] - amountCreator >= MIN_LIQUIDITY,
-            "Cannot remove all liquidity"
-        );
-        require(
-            coralReserves[creatorToken] - amountCoral >= MIN_LIQUIDITY,
-            "Cannot remove all liquidity"
+        // Validate minimum reserves
+        require(newCreatorReserve >= MIN_LIQUIDITY, "Creator reserve below minimum");
+        require(newCoralReserve >= MIN_LIQUIDITY, "CORAL reserve below minimum");
+
+        // Replace multiple DebugLog emissions with single focused event
+        emit LiquidityOperation(
+            "remove",
+            creatorToken,
+            amountCreator,
+            block.timestamp
         );
 
-        // Effects - Update reserves first
+        // Log current reserves
+        emit PoolMetrics(creatorToken, creatorTokenReserves[creatorToken], coralReserves[creatorToken], maxLiquidityPerPool);
+
+        // Update reserves
         creatorTokenReserves[creatorToken] -= amountCreator;
         coralReserves[creatorToken] -= amountCoral;
 
-        // Interactions - Handle transfers
-        IERC20(creatorToken).safeTransfer(msg.sender, amountCreator);
-        IERC20(coralToken).safeTransfer(msg.sender, amountCoral);
-
+        // Final success log
+        emit LiquidityOperation("completed", creatorToken, amountCreator, block.timestamp);
         emit LiquidityRemoved(creatorToken, amountCreator, amountCoral);
+        
+        // Log final reserves
+        emit PoolMetrics(creatorToken, creatorTokenReserves[creatorToken], coralReserves[creatorToken], maxLiquidityPerPool);
     }
 
-    function collectFees(address token, uint256 amount) external {
+    function collectFees(address token, uint256 amount) external onlyOwner {
         collectedFees[token] += amount;
-        emit FeesCollected(token, amount);
-    }
-
-    /**
-     * @dev Returns the current reserves for a creator token pair
-     * @param creatorToken The address of the creator token
-     * @return creatorReserve The amount of creator tokens in reserve
-     * @return coralReserve The amount of CORAL tokens in reserve
-     * @notice Returns (0,0) for untracked pools instead of reverting
-     */
-    function getReserves(
-        address creatorToken
-    ) external view returns (
-        uint256 creatorReserve,
-        uint256 coralReserve
-    ) {
-        require(creatorToken != address(0), "Invalid creator token address");
-
-        // Return zero reserves for untracked pools
-        if (!isTrackedPool[creatorToken]) {
-            return (0, 0);
-        }
-
-        creatorReserve = creatorTokenReserves[creatorToken];
-        coralReserve = coralReserves[creatorToken];
-
-        return (creatorReserve, coralReserve);
+        emit FeeOperation("collect", token, amount, address(0));
     }
 
     /**
@@ -339,30 +491,49 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     }
 
     /**
-     * @dev Withdraws collected fees for a specific token
-     * @param token The ERC20 token address to withdraw fees for
-     * @param amount Amount of fees to withdraw
+     * @dev Withdraws collected fees with whitelist protection
      */
-    function withdrawFees(address token, uint256 amount) external onlyOwner {
-        // Input validation
-        require(token != address(0), "Invalid token address");
-        require(amount > 0, "Amount must be greater than zero");
-        require(collectedFees[token] >= amount, "Insufficient fees");
+    function withdrawFees(
+        address token,
+        uint256 amount
+    ) external onlyOwner {
+        // Replace multiple DebugLog emissions with single focused event
+        emit FeeOperation(
+            "withdraw",
+            token,
+            amount,
+            address(0)
+        );
 
-        // Effects - Update state before transfer
+        // Check whitelist
+        require(whitelistedWithdrawAddresses[msg.sender], "Not authorized for withdrawal");
+
+        // Validate withdrawal
+        require(amount > 0, "Amount must be greater than 0");
+        require(collectedFees[token] >= amount, "Insufficient collected fees");
+
+        // Log pre-withdrawal state
+        emit PoolMetrics(token, IERC20(token).balanceOf(address(this)), amount, 0);
+
+        // Update state before transfer
         collectedFees[token] -= amount;
 
         // Get token contract
         IERC20 tokenContract = IERC20(token);
         
-        // Verify contract has sufficient balance
-        uint256 balance = tokenContract.balanceOf(address(this));
-        require(balance >= amount, "Insufficient token balance");
+        // Check contract balance
+        uint256 contractBalance = tokenContract.balanceOf(address(this));
+        require(contractBalance >= amount, "Insufficient contract balance");
 
-        // Interactions - Transfer tokens
-        tokenContract.safeTransfer(msg.sender, amount);
+        // Perform transfer directly without bool check
+        IERC20(token).safeTransfer(msg.sender, amount);
 
-        emit FeesWithdrawn(token, amount);
+        // Verify transfer success through balance check
+        uint256 newBalance = IERC20(token).balanceOf(address(this));
+        require(newBalance == contractBalance - amount, "Transfer amount mismatch");
+
+        // Log withdrawal
+        emit FeeOperation("completed", token, amount, msg.sender);
     }
 
     /**
@@ -379,33 +550,60 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     }
 
     /**
-     * @dev Updates engagement metrics with smoothing
+     * @dev Updates engagement metrics with optimized rebalancing
      */
     function updateEngagementMetrics(
         address token, 
         uint256 newSubscriberCount
     ) external onlyOwner {
+        // Cache storage pointer
         EngagementMetrics storage metrics = tokenEngagement[token];
         
+        // Cache current values to avoid multiple storage reads
+        uint256 currentSmoothed = metrics.smoothedSubscriberCount;
+        uint256 currentUpdateCount = metrics.updateCount;
+        
+        emit LiquidityOperation(
+            "engagement_update_started",
+            token,
+            newSubscriberCount,
+            block.timestamp
+        );
+        
         // Initialize if first update
-        if (metrics.lastSubscriberCount == 0) {
+        if (currentUpdateCount == 0) {
             metrics.lastSubscriberCount = newSubscriberCount;
             metrics.smoothedSubscriberCount = newSubscriberCount;
             metrics.updateCount = 1;
+            
+            emit PoolOperation(
+                "engagement_initialized", 
+                token, 
+                newSubscriberCount, 
+                block.timestamp
+            );
             return;
         }
 
         // Calculate smoothed value
         uint256 newSmoothedCount = calculateSmoothedEngagement(
-            metrics.smoothedSubscriberCount,
+            currentSmoothed,
             newSubscriberCount
         );
 
-        // Update metrics
+        // Calculate percentage change
+        uint256 percentChange;
+        if (newSmoothedCount > currentSmoothed) {
+            percentChange = ((newSmoothedCount - currentSmoothed) * 100) / currentSmoothed;
+        } else {
+            percentChange = ((currentSmoothed - newSmoothedCount) * 100) / currentSmoothed;
+        }
+
+        // Update metrics (single storage write for each value)
         metrics.lastSubscriberCount = newSubscriberCount;
         metrics.smoothedSubscriberCount = newSmoothedCount;
         metrics.lastUpdateTime = block.timestamp;
-        metrics.updateCount++;
+        metrics.updateCount = currentUpdateCount + 1;
 
         emit EngagementSmoothed(
             token,
@@ -414,12 +612,20 @@ contract SaraLiquidityManager is Ownable, AccessControl {
             block.timestamp
         );
 
-        // Check if rebalance needed (only after minimum updates)
-        if (metrics.updateCount >= MIN_UPDATES_BEFORE_REBALANCE) {
-            uint256 rebalanceThreshold = (metrics.smoothedSubscriberCount * REBALANCE_THRESHOLD) / 100;
+        // Check if rebalance needed
+        if (currentUpdateCount >= MIN_UPDATES_BEFORE_REBALANCE) {
+            if (percentChange >= REBALANCE_MIN_CHANGE) {
+                uint256 rebalanceThreshold = (newSmoothedCount * REBALANCE_THRESHOLD) / 100;
             
             if (newSubscriberCount > rebalanceThreshold) {
-                _rebalanceLiquidity(token, metrics.smoothedSubscriberCount);
+                    _rebalanceLiquidity(token, newSmoothedCount);
+                }
+            } else {
+                emit RebalanceSkipped(
+                    token,
+                    newSmoothedCount,
+                    "Change below minimum threshold"
+                );
             }
         }
     }
@@ -445,32 +651,85 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     }
 
     /**
-     * @dev Optimized rebalancing with minimum liquidity check
+     * @dev Optimized rebalancing with minimum liquidity check and safety buffer
      */
     function _rebalanceLiquidity(address token, uint256 subscriberCount) internal {
+        // Replace multiple DebugLog emissions with focused metrics
+        emit RebalanceMetrics(
+            token,
+            coralReserves[token],
+            coralReserves[token],
+            "Rebalance completed"
+        );
+
         // Skip if pool has insufficient liquidity
         if (coralReserves[token] < MIN_LIQUIDITY) {
-            emit RebalanceSkipped(token, coralReserves[token], "Insufficient liquidity");
+            emit RebalanceSkipped(
+                token,
+                coralReserves[token],
+                "Insufficient liquidity"
+            );
             return;
         }
 
         // AI-based liquidity calculation
         uint256 newReserveCoral = calculateOptimalLiquidity(subscriberCount);
         
-        // ✅ Cap at maximum liquidity
-        if (newReserveCoral > maxLiquidityPerPool) {
-            newReserveCoral = maxLiquidityPerPool;
-            emit LiquidityCapped(token, newReserveCoral);
+        // Calculate minimum safe liquidity with buffer
+        uint256 minimumSafeLiquidity = MIN_LIQUIDITY + (MIN_LIQUIDITY * LIQUIDITY_SAFETY_BUFFER / 100);
+        
+        // Log safety threshold
+        emit LiquidityThresholds(
+            token,
+            MIN_LIQUIDITY,
+            minimumSafeLiquidity,
+            newReserveCoral
+        );
+
+        // Enforce minimum safe liquidity
+        if (newReserveCoral < minimumSafeLiquidity) {
+            emit RebalanceAdjusted(
+                token,
+                newReserveCoral,
+                minimumSafeLiquidity,
+                "Enforcing safety buffer"
+            );
+            newReserveCoral = minimumSafeLiquidity;
         }
         
+        // Cap at maximum liquidity
+        if (newReserveCoral > maxLiquidityPerPool) {
+            newReserveCoral = maxLiquidityPerPool;
+            emit LiquidityCapped(token, maxLiquidityPerPool);
+        }
+        
+        // Log pre-update state
+        emit LiquidityOperation("pre_update_state", token, coralReserves[token], newReserveCoral);
+        
         // Update liquidity
+        uint256 oldReserve = coralReserves[token];
         coralReserves[token] = newReserveCoral;
         
+        // Log final state
+        emit PoolMetrics(token, creatorTokenReserves[token], coralReserves[token], maxLiquidityPerPool);
         emit LiquidityRebalanced(token, newReserveCoral);
+        emit RebalanceMetrics(token, oldReserve, newReserveCoral, "Rebalance completed");
     }
 
-    function calculateOptimalLiquidity(uint256 subscriberCount) internal pure returns (uint256) {
-        // Initial simple formula, can be enhanced with AI later
+    /**
+     * @dev Calculates optimal liquidity with overflow protection
+     * @param subscriberCount Number of subscribers to base calculation on
+     * @return uint256 Optimal liquidity amount
+     */
+    function calculateOptimalLiquidity(
+        uint256 subscriberCount
+    ) internal pure returns (uint256) {
+        // Check for overflow before multiplication
+        require(
+            subscriberCount <= type(uint256).max / 1e18, 
+            "Overflow risk in liquidity calculation"
+        );
+
         return subscriberCount * 1e18;
     }
 
@@ -488,157 +747,211 @@ contract SaraLiquidityManager is Ownable, AccessControl {
 
     /**
      * @dev Redeploys collected fees to target pool with proper token handling
-     * @param token The token address whose fees to redeploy
-     * @param targetPool The pool to receive the fees
      */
     function redeployFees(
         address token, 
         address targetPool
     ) public onlyOwner {
+        // Replace multiple DebugLog emissions with single focused event
+        emit FeeOperation(
+            "redeploy",
+            token,
+            0,
+            targetPool
+        );
+
         // Check fee amount
         uint256 feeAmount = collectedFees[token];
-        require(feeAmount > 0, ERR_NO_FEES);
-        require(feeAmount >= MIN_FEES_FOR_REDEPLOY, ERR_BELOW_MIN);
+        
+        // Skip if no fees to redeploy
+        if (feeAmount == 0) {
+            emit DeploymentSkipped(targetPool, feeAmount, "No fees to redeploy");
+            return;
+        }
+
+        // Validate minimum fee amount
+        if (feeAmount < MIN_FEES_FOR_REDEPLOY) {
+            emit DeploymentSkipped(targetPool, feeAmount, "Below minimum fee threshold");
+            return;
+        }
+
+        // Check contract balance before transfer
+        uint256 contractBalance = IERC20(token).balanceOf(address(this));
+
+        // Log balance check
+        emit PoolMetrics(token, contractBalance, feeAmount, 0);
+
+        // Ensure sufficient balance
+        if (contractBalance < feeAmount) {
+            emit DeploymentSkipped(targetPool, feeAmount, "Insufficient contract balance");
+            return;
+        }
 
         // Update state before transfer
-        collectedFees[token] -= feeAmount;
+        collectedFees[token] = 0;
 
-        if (isNativeCoral(coralToken)) {
-            // Handle native S token
-            require(address(this).balance >= feeAmount, "Insufficient S balance");
+        // Handle transfer and update reserves
+        if (isCoralToken(token)) {
+            // Handle CORAL token
             coralReserves[targetPool] += feeAmount;
+            IERC20(token).safeTransfer(targetPool, feeAmount);
             emit FeesRedeployed(token, feeAmount, targetPool);
         } else {
-            // Handle ERC20 token
-            require(IERC20(token).balanceOf(address(this)) >= feeAmount, "Insufficient token balance");
+            // Handle other ERC20 tokens
             IERC20(token).safeTransfer(targetPool, feeAmount);
             emit FeesRedeployed(token, feeAmount, targetPool);
         }
+
+        // Final success log
+        emit FeeOperation("completed", token, feeAmount, targetPool);
     }
 
     /**
      * @dev Auto redeploys fees when threshold is reached
      * @param token The ERC20 token address whose fees to redeploy
      */
-    function autoRedeployFees(address token) external onlyDEX {
-        // Input validation
-        require(token != address(0), "Invalid token address");
+    function autoRedeployFees(address token) external returns (bool) {
+        require(msg.sender == dex, "Only DEX can redeploy fees");
+        require(isTrackedPool[token], "Pool not tracked");
+        
         uint256 feeAmount = collectedFees[token];
+        if (feeAmount == 0) return true;  // Nothing to redeploy
+
+        // Get current reserves
+        (uint256 currentCreatorReserve, uint256 currentCoralReserve) = getReserves(token);
         
-        // Basic checks
-        require(feeAmount > 0, ERR_NO_FEES);
-        require(feeAmount >= MIN_FEES_FOR_REDEPLOY, ERR_BELOW_MIN);
+        // Check if adding fees would exceed max liquidity
+        uint256 remainingLiquidity = maxLiquidityPerPool - currentCoralReserve;
+        if (feeAmount > remainingLiquidity) {
+            feeAmount = remainingLiquidity;
+        }
 
-        // Find optimal pool for redeployment
-        address targetPool = findOptimalRedeploymentPool();
-        require(targetPool != address(0), "No suitable pool found");
+        if (feeAmount > 0) {
+            // Update reserves with redeployed fees
+            _updateReserves(
+                token,
+                currentCreatorReserve + feeAmount,  // Add equal amount to creator side
+                currentCoralReserve + feeAmount     // Add fees to coral side
+            );
 
-        // Calculate optimal deployment amount
-        uint256 deployAmount = calculateOptimalDeployment(targetPool, feeAmount);
-        require(deployAmount > 0, "No deployment needed");
-        require(deployAmount <= feeAmount, "Deploy amount exceeds available fees");
+            // Reset collected fees
+            collectedFees[token] = 0;
 
-        // Get token contract
-        IERC20 tokenContract = IERC20(token);
-        
-        // Verify contract has sufficient balance
-        uint256 balance = tokenContract.balanceOf(address(this));
-        require(balance >= deployAmount, "Insufficient token balance");
+            emit LiquidityOperation("fee_redeployment", token, feeAmount, feeAmount);
+            return true;
+        }
 
-        // Effects - Update state before transfer
-        collectedFees[token] -= deployAmount;
-        coralReserves[targetPool] += deployAmount;
-
-        // Interactions - Transfer tokens
-        tokenContract.safeTransfer(targetPool, deployAmount);
-
-        emit AutoFeesRedeployed(
-            token, 
-            deployAmount, 
-            targetPool, 
-            deployAmount, 
-            block.timestamp
-        );
+        return false;
     }
 
     /**
-     * @dev Optimized pool selection using cached value
+     * @dev Finds optimal pool for redeployment with immediate fallback
      */
     function findOptimalRedeploymentPool() internal returns (address) {
-        // Return cached value if recent enough
-        if (
-            mostNeededPool.pool != address(0) &&
-            block.timestamp < mostNeededPool.lastUpdateTime + POOL_NEED_UPDATE_INTERVAL
-        ) {
-            // Verify pool is still valid
-            if (
-                isTrackedPool[mostNeededPool.pool] &&
-                isPoolActive(mostNeededPool.pool)
-            ) {
-                return mostNeededPool.pool;
-            }
+        // Check if current best pool is invalid or inactive
+        if (!isTrackedPool[mostNeededPool.pool] || 
+            !isPoolActive(mostNeededPool.pool) ||
+            block.timestamp >= mostNeededPool.lastUpdateTime + POOL_NEED_UPDATE_INTERVAL) {
+            
+            emit LiquidityOperation("forcing_pool_update", address(0), block.timestamp, 0);
+            
+            updateMostNeededPool();
         }
 
-        // If cache is stale or invalid, update it
-        updateMostNeededPool();
+        // Verify the pool is still valid after update
+        if (!isTrackedPool[mostNeededPool.pool] || !isPoolActive(mostNeededPool.pool)) {
+            emit LiquidityOperation("no_valid_pools_found", address(0), block.timestamp, 0);
+            return address(0);
+        }
+
         return mostNeededPool.pool;
     }
 
     /**
-     * @dev Updates the cached most needy pool
+     * @dev Updates most needed pool with batch processing
      */
     function updateMostNeededPool() internal {
-        // Reset current best
-        mostNeededPool.pool = address(0);
-        mostNeededPool.score = 0;
+        // Replace multiple DebugLog emissions with single focused event
+        emit PoolOperation(
+            "pool_need_update_started",
+            address(0),
+            lastProcessedIndex,
+            trackedPools.length
+        );
 
-        // Cache array length
-        uint256 poolCount = trackedPools.length;
-        if (poolCount == 0) return;
+        uint256 startIndex = lastProcessedIndex;
+        uint256 endIndex = Math.min(
+            startIndex + BATCH_SIZE,
+            trackedPools.length
+        );
 
-        // Cache current time
-        uint256 currentTime = block.timestamp;
-        uint256 activityCutoff = currentTime - ACTIVITY_THRESHOLD;
+        // Process pools in batches
+        uint256 highestScore = 0;
+        address bestPool = address(0);
 
-        // Single pass through pools
-        for (uint256 i = 0; i < poolCount; i++) {
+        for (uint256 i = startIndex; i < endIndex; i++) {
             address pool = trackedPools[i];
             
             // Skip inactive pools
-            PoolActivity memory activity = poolActivity[pool];
-            if (
-                !isTrackedPool[pool] || 
-                activity.lastTradeTimestamp < activityCutoff || 
-                activity.tradingVolume24h < MIN_24H_VOLUME
-            ) {
+            if (!isPoolActive(pool)) {
+                emit PoolOperation("pool_inactive", pool, 0, 0);
                 continue;
             }
             
-            // Calculate pool score
+            // Calculate and update pool score
             uint256 score = calculatePoolScore(pool);
             
-            // Update if better score found
-            if (score > mostNeededPool.score) {
-                mostNeededPool.pool = pool;
-                mostNeededPool.score = score;
+            // Update pool score in priority queue
+            uint256 index = poolScoreIndex[pool];
+            if (index == 0) {
+                // New pool
+                poolScores.push(PoolScore({
+                    pool: pool,
+                    score: score,
+                    lastUpdateTime: block.timestamp
+                }));
+                poolScoreIndex[pool] = poolScores.length;
+            } else {
+                // Update existing pool
+                poolScores[index - 1].score = score;
+                poolScores[index - 1].lastUpdateTime = block.timestamp;
             }
+
+            // Track highest score in this batch
+            if (score > highestScore) {
+                highestScore = score;
+                bestPool = pool;
+            }
+
+            emit PoolOperation("pool_processed", pool, score, block.timestamp);
         }
 
-        // Update timestamp and emit event
-        mostNeededPool.lastUpdateTime = currentTime;
-        emit PoolNeedUpdated(
-            mostNeededPool.pool,
-            mostNeededPool.score,
-            currentTime
-        );
+        // Update last processed index
+        lastProcessedIndex = endIndex % trackedPools.length;
+
+        // Update most needed pool if we found a better one
+        if (bestPool != address(0) && 
+            (highestScore > mostNeededPool.score || 
+             !isPoolActive(mostNeededPool.pool))) {
+            
+            mostNeededPool.pool = bestPool;
+            mostNeededPool.score = highestScore;
+            mostNeededPool.lastUpdateTime = block.timestamp;
+
+            emit PoolOperation("pool_need_updated", bestPool, highestScore, block.timestamp);
+        }
+
+        // Log batch completion
+        emit PoolOperation("batch_update_completed", bestPool, highestScore, block.timestamp);
     }
 
-    /**
-     * @dev Force update of pool needs (public for external triggers)
-     */
-    function forcePoolNeedUpdate() external onlyOwner {
-        updateMostNeededPool();
-    }
+    // Add new event for batch processing
+    event DebugPoolProcessed(
+        address indexed pool,
+        uint256 score,
+        uint256 currentIndex,
+        uint256 batchEndIndex
+    );
 
     /**
      * @dev View function to get current pool need info
@@ -676,7 +989,7 @@ contract SaraLiquidityManager is Ownable, AccessControl {
         }
         
         isTrackedPool[pool] = false;
-        emit PoolUntracked(pool);
+        emit PoolOperation("pool_untracked", pool, 0, block.timestamp);
     }
 
     /**
@@ -732,30 +1045,89 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     }
 
     /**
-     * @dev Completes price discovery and sets initial liquidity
+     * @dev Calculates initial liquidity for a specific token
+     * @param token The token address
+     * @return uint256 The calculated initial liquidity
      */
-    function completePriceDiscovery(address token) public onlyOwner {
+    function calculateInitialLiquidity(
+        address token
+    ) public returns (uint256) {
         PriceDiscoveryData storage data = priceDiscovery[token];
-        require(data.isInDiscovery, "Not in discovery");
+        uint256 price = calculateInitialPrice(token);
+        return calculateInitialLiquidity(data.currentSubscribers, price);
+    }
+
+    /**
+     * @dev Calculates initial liquidity based on subscriber count and CORAL price
+     */
+    function calculateInitialLiquidity(
+        uint256 subscriberCount,
+        uint256 price
+    ) public returns (uint256) {
+        emit LiquidityOperation(
+            "initial_liquidity_calculation_started",
+            address(0),
+            subscriberCount,
+            price
+        );
+
+        // Input validation with detailed errors
+        require(subscriberCount > 0, "Invalid subscriber count");
+        require(price > 0, "Price cannot be zero");
+        require(price >= MIN_TOKEN_PRICE, "Price below minimum");
+        require(price <= BASE_PRICE * MAX_PRICE_MULTIPLIER, "Price above maximum");
+
+        // Simplified overflow protection
         require(
-            block.timestamp >= data.observationStartTime + DISCOVERY_PERIOD,
-            "Discovery period not complete"
+            subscriberCount <= type(uint256).max / price, 
+            "Multiplication overflow"
         );
         
-        // Calculate optimal initial price based on engagement trends
-        uint256 initialPrice = calculateInitialPrice(token);
-        uint256 initialLiquidity = calculateInitialLiquidity(
-            data.currentSubscribers,
-            initialPrice
+        // Calculate initial liquidity
+        uint256 liquidity = subscriberCount * price;
+        
+        // Log pre-cap liquidity
+        emit LiquidityOperation("pre_cap_liquidity", address(0), liquidity, maxLiquidityPerPool);
+        
+        // Cap liquidity at maximum if needed
+        if (liquidity > maxLiquidityPerPool) {
+            emit LiquidityCapped(address(0), maxLiquidityPerPool);
+            return maxLiquidityPerPool;
+        }
+
+        // Ensure minimum liquidity with detailed error
+        require(liquidity >= MIN_LIQUIDITY, "Liquidity below minimum");
+
+        // Log final calculated liquidity
+        emit LiquidityOperation("final_liquidity_calculated", address(0), liquidity, price);
+
+        return liquidity;
+    }
+
+    /**
+     * @dev Completes the price discovery process for a creator token
+     * @param creatorToken The creator token address
+     */
+    function completePriceDiscovery(address creatorToken) public onlyOwner {
+        require(isTrackedPool[creatorToken], "Pool not tracked");
+        require(priceDiscovery[creatorToken].isInDiscovery, "Not in price discovery");
+        
+        // Calculate initial liquidity based on engagement data
+        uint256 initialCoralLiquidity = calculateInitialLiquidity(creatorToken);
+        
+        // Update reserves
+        _updateReserves(creatorToken, creatorTokenReserves[creatorToken], initialCoralLiquidity);
+        
+        // Mark price discovery as complete
+        priceDiscovery[creatorToken].isInDiscovery = false;
+        
+        // Emit event
+        emit LiquidityAdded(
+            creatorToken,
+            0, // No creator tokens added initially
+            initialCoralLiquidity,
+            initialCoralLiquidity // Liquidity amount
         );
-        
-        // Set initial liquidity
-        coralReserves[token] = initialLiquidity;
-        
-        // Mark discovery as complete
-        data.isInDiscovery = false;
-        
-        emit PriceDiscoveryCompleted(token, initialPrice, initialLiquidity);
     }
 
     /**
@@ -822,7 +1194,7 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     // Add event for skipped rebalances
     event RebalanceSkipped(
         address indexed token,
-        uint256 coralReserve,
+        uint256 currentValue,
         string reason
     );
 
@@ -834,32 +1206,81 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     );
 
     /**
-     * @dev Updates pool trading activity
+     * @dev Updates pool trading activity with historical tracking
      */
     function updatePoolActivity(
         address pool,
         uint256 tradeAmount
     ) external onlyDEX {
+        // Cache storage pointer
         PoolActivity storage activity = poolActivity[pool];
         
-        // Update last trade timestamp
-        activity.lastTradeTimestamp = block.timestamp;
+        // Cache current values
+        uint256 currentVolume = activity.tradingVolume24h;
+        uint256 lastUpdate = activity.lastVolumeUpdateTime;
         
-        // Update 24h volume
-        if (block.timestamp >= activity.lastVolumeUpdateTime + 24 hours) {
-            // Reset volume after 24h
-            activity.tradingVolume24h = tradeAmount;
-            activity.lastVolumeUpdateTime = block.timestamp;
-        } else {
-            activity.tradingVolume24h += tradeAmount;
-        }
-        
-        emit PoolActivityUpdated(
+        emit LiquidityOperation(
+            "pool_activity_update_started",
             pool,
-            activity.tradingVolume24h,
+            tradeAmount,
             block.timestamp
         );
+
+        // Update last trade timestamp (single storage write)
+        activity.lastTradeTimestamp = block.timestamp;
+        
+        // Check if 24 hours have passed
+        if (block.timestamp >= lastUpdate + 24 hours) {
+            // Store historical data
+            if (volumeHistory[pool].length >= MAX_HISTORY_ENTRIES) {
+                // Optimize array manipulation
+                uint256 lastIndex = volumeHistory[pool].length - 1;
+                for (uint i = 0; i < lastIndex; i++) {
+                    volumeHistory[pool][i] = volumeHistory[pool][i + 1];
+                }
+                volumeHistory[pool].pop();
+            }
+            
+            // Add new entry (single storage write)
+            volumeHistory[pool].push(VolumeHistory({
+                lastRecordedVolume: currentVolume,
+                timestamp: block.timestamp
+            }));
+
+            // Reset volume (single storage write)
+            activity.tradingVolume24h = tradeAmount;
+            activity.lastVolumeUpdateTime = block.timestamp;
+            
+            emit VolumeReset(pool, currentVolume, block.timestamp);
+        } else {
+            // Update volume (single storage write)
+            activity.tradingVolume24h = currentVolume + tradeAmount;
+        }
+        
+        emit PoolActivityUpdated(pool, activity.tradingVolume24h);
     }
+
+    // Add new event for volume resets
+    event VolumeReset(
+        address indexed pool,
+        uint256 lastVolume,
+        uint256 timestamp
+    );
+
+    // Add view function to get historical volume data
+    function getVolumeHistory(
+        address pool
+    ) external view returns (VolumeHistory[] memory) {
+        return volumeHistory[pool];
+    }
+
+    // Add new event for detailed pool activity tracking
+    event DebugPoolActivity(
+        address indexed pool,
+        uint256 currentVolume,
+        uint256 lastUpdateTime,
+        uint256 currentTime
+    );
 
     /**
      * @dev Checks if pool is actively traded
@@ -867,47 +1288,61 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     function isPoolActive(address pool) public view returns (bool) {
         PoolActivity storage activity = poolActivity[pool];
         uint256 lastTrade = activity.lastTradeTimestamp;
-        uint256 volume = activity.tradingVolume24h;
         
-        if (lastTrade < block.timestamp - ACTIVITY_THRESHOLD) return false;
-        if (volume < MIN_24H_VOLUME) return false;
-        return true;
+        // Check for uninitialized or inactive pools
+        if (lastTrade == 0 || lastTrade + ACTIVITY_THRESHOLD < block.timestamp) {
+            return false;
+        }
+
+        return activity.tradingVolume24h >= MIN_24H_VOLUME;
     }
 
+    // Replace multiple debug events with a single comprehensive event
+    event PoolScoreCalculated(
+        address indexed pool,
+        uint256 finalScore,
+        uint256 liquidity,
+        uint256 volume,
+        uint256 liquidityWeight,
+        uint256 volumeWeight
+    );
+
     /**
-     * @dev Calculates pool score based on liquidity and activity
+     * @dev Calculates pool score based on liquidity and activity with market-based dynamic weighting
      */
     function calculatePoolScore(
         address pool
-    ) internal view returns (uint256) {
+    ) internal returns (uint256) {
         // Cache values to save gas
         uint256 liquidity = coralReserves[pool];
         uint256 volume = poolActivity[pool].tradingVolume24h;
         
-        // Use bit shifts for multiplication (more gas efficient)
-        // 70% = multiply by 7/10
-        // 30% = multiply by 3/10
-        return (
-            (liquidity * 7 + volume * 3) / 10
-        );
-    }
+        // Calculate dynamic weights based on market conditions
+        uint256 dynamicWeightLiquidity = 5 + (liquidity / (10_000 * 1e18)); // Base 5 + up to 5 based on liquidity
+        uint256 dynamicWeightVolume = 3 + (volume / (5_000 * 1e18));  // Base 3 + up to 7 based on volume
 
-    /**
-     * @dev View function to get pool activity metrics
-     */
-    function getPoolActivity(
-        address pool
-    ) external view returns (
-        uint256 lastTrade,
-        uint256 volume24h,
-        bool isActive
-    ) {
-        PoolActivity storage activity = poolActivity[pool];
-        return (
-            activity.lastTradeTimestamp,
-            activity.tradingVolume24h,
-            isPoolActive(pool)
+        // Cap weights to prevent overflow
+        dynamicWeightLiquidity = dynamicWeightLiquidity > 10 ? 10 : dynamicWeightLiquidity;
+        dynamicWeightVolume = dynamicWeightVolume > 10 ? 10 : dynamicWeightVolume;
+
+        // Calculate score with dynamic market-based weights
+        uint256 liquidityScore = liquidity * dynamicWeightLiquidity;
+        uint256 volumeScore = volume * dynamicWeightVolume;
+        
+        // Calculate final score
+        uint256 score = (liquidityScore + volumeScore) / 10;
+
+        // Single event with all relevant data
+        emit PoolScoreCalculated(
+            pool,
+            score,
+            liquidity,
+            volume,
+            dynamicWeightLiquidity,
+            dynamicWeightVolume
         );
+
+        return score;
     }
 
     /**
@@ -986,89 +1421,85 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     );
 
     /**
-     * @dev Modifier to check if caller has DEX role
+     * @dev Enhanced modifier for DEX access control
      */
     modifier onlyDEX() {
-        require(hasRole(DEX_ROLE, msg.sender), "Caller does not have DEX role");
+        require(
+            msg.sender == dex || 
+            hasRole(DEX_ROLE, msg.sender) || 
+            hasRole(BACKUP_DEX_ROLE, msg.sender),
+            "Caller is not authorized DEX"
+        );
+        
+        // Log access attempt
+        emit RoleOperation("access_attempt", msg.sender, DEX_ROLE);
         _;
     }
 
     /**
-     * @dev Sets a new DEX address with proper role management
-     * @param _dex The new DEX address
+     * @dev Allows owner to set primary DEX address
      */
     function setDEX(address _dex) external onlyOwner {
         require(_dex != address(0), "Invalid DEX address");
+        require(_dex != dex, "Already primary DEX");
         
-        // Revoke role from old DEX if it exists
-        if (dex != address(0)) {
-            revokeRole(DEX_ROLE, dex);
-        }
-        
-        // Grant role to new DEX
-        grantRole(DEX_ROLE, _dex);
-        
-        // Update DEX address
+        address oldDex = dex;
         dex = _dex;
         
-        emit DEXUpdated(_dex);
+        // Grant DEX role to new address
+        _grantRole(DEX_ROLE, _dex);
+        emit RoleOperation("grant", _dex, DEX_ROLE);
+        
+        // Fix type mismatch by using uint256(uint160()) to convert address to uint256
+        emit LiquidityOperation(
+            "dex_updated", 
+            address(0),  // token parameter
+            uint256(uint160(oldDex)),  // amount parameter
+            block.timestamp
+        );
     }
 
     /**
-     * @dev Allows owner to grant DEX role to additional addresses
-     * @param account Address to grant DEX role to
+     * @dev Grants backup DEX role to address
      */
-    function grantDEXRole(address account) external onlyOwner {
+    function grantBackupDEXRole(address account) external onlyOwner {
         require(account != address(0), "Invalid address");
-        grantRole(DEX_ROLE, account);
+        require(account != dex, "Already primary DEX");
+        require(!hasRole(BACKUP_DEX_ROLE, account), "Already backup DEX");
+        
+        _grantRole(BACKUP_DEX_ROLE, account);
+        emit RoleOperation("grant", account, BACKUP_DEX_ROLE);
     }
 
     /**
-     * @dev Allows owner to revoke DEX role from addresses
-     * @param account Address to revoke DEX role from
+     * @dev Revokes DEX role from address
      */
     function revokeDEXRole(address account) external onlyOwner {
         require(account != address(0), "Invalid address");
         require(account != dex, "Cannot revoke from primary DEX");
-        revokeRole(DEX_ROLE, account);
+        
+        if (hasRole(DEX_ROLE, account)) {
+            _revokeRole(DEX_ROLE, account);
+        }
+        if (hasRole(BACKUP_DEX_ROLE, account)) {
+            _revokeRole(BACKUP_DEX_ROLE, account);
+        }
+        
+        emit RoleOperation("revoke", account, DEX_ROLE);
     }
 
-    // Add event for DEX updates
-    event DEXUpdated(address indexed newDEX);
+    // Consolidate role management events
+    event RoleOperation(
+        string operation,  // "grant", "revoke"
+        address indexed account,
+        bytes32 indexed role
+    );
 
     // Add event for liquidity capping
     event LiquidityCapped(
         address indexed token,
         uint256 cappedAmount
     );
-
-    /**
-     * @dev Calculates initial liquidity based on subscriber count and CORAL price
-     * @param subscriberCount Current number of subscribers
-     * @param price Initial price in CORAL tokens (18 decimals)
-     * @return uint256 Initial liquidity amount in CORAL tokens
-     */
-    function calculateInitialLiquidity(
-        uint256 subscriberCount,
-        uint256 price
-    ) public view returns (uint256) {
-        // Input validation
-        require(subscriberCount > 0, "Invalid subscriber count");
-        require(price >= MIN_TOKEN_PRICE, "Price below minimum");
-        require(price <= BASE_PRICE * MAX_PRICE_MULTIPLIER, "Price above maximum");
-
-        // Check for multiplication overflow before performing calculation
-        require(subscriberCount <= type(uint256).max / price, "Multiplication overflow");
-        
-        // Calculate initial liquidity
-        uint256 liquidity = subscriberCount * price;
-        
-        // Validate liquidity bounds
-        require(liquidity >= MIN_LIQUIDITY, "Liquidity below minimum");
-        require(liquidity <= maxLiquidityPerPool, "Liquidity above maximum");
-
-        return liquidity;
-    }
 
     /**
      * @dev Helper function to validate if a liquidity amount is within acceptable bounds
@@ -1083,36 +1514,329 @@ contract SaraLiquidityManager is Ownable, AccessControl {
     // Add event for skipped deployments
     event DeploymentSkipped(
         address indexed targetPool,
-        uint256 calculatedAmount,
+        uint256 amount,
         string reason
     );
 
     /**
-     * @dev Allows owner to update maximum liquidity per pool
-     * @param _newMax New maximum liquidity value
+     * @dev Updates the maximum liquidity per pool with safety checks
+     * @param newMax New maximum liquidity value
      */
-    function setMaxLiquidity(uint256 _newMax) external onlyOwner {
-        // Input validation
-        require(_newMax >= MIN_LIQUIDITY, "New max must be >= min liquidity");
-        require(_newMax <= type(uint256).max / MAX_PRICE_MULTIPLIER, "Max too high");
-
+    function updateMaxLiquidityPerPool(uint256 newMax) external onlyOwner {
+        require(newMax >= MIN_LIQUIDITY, "Below minimum");
+        require(newMax <= ABSOLUTE_MAX_LIQUIDITY, "Exceeds absolute limit");
+        
         // Store old value for event
         uint256 oldMax = maxLiquidityPerPool;
-
+        
         // Update max liquidity
-        maxLiquidityPerPool = _newMax;
-
+        maxLiquidityPerPool = newMax;
+        
         // Emit event
-        emit MaxLiquidityUpdated(oldMax, _newMax, block.timestamp);
+        emit MaxLiquidityUpdated(oldMax, newMax);
+    }
+
+    // Add new event for max liquidity checks
+    event LiquidityThresholds(
+        address indexed highestPool,
+        uint256 highestReserve,
+        uint256 proposedMax
+    );
+
+    // Add new event for max liquidity validation
+    event LiquidityValidation(
+        uint256 proposedMax,
+        uint256 absoluteMax,
+        bool withinLimits
+    );
+
+    // Add new event for detailed liquidity calculation tracking
+    event LiquidityCalculation(
+        uint256 subscriberCount,
+        uint256 price,
+        uint256 calculatedLiquidity,
+        bool wasCapped
+    );
+
+    // Add new event for pool status debugging
+    event DebugPoolStatus(
+        address indexed pool,
+        bool isTracked,
+        bool isActive,
+        uint256 score
+    );
+
+    // Add new events for liquidity safety tracking
+    event LiquidityThresholds(
+        address indexed token,
+        uint256 minimumLiquidity,
+        uint256 safeLiquidity,
+        uint256 calculatedLiquidity
+    );
+
+    event RebalanceAdjusted(
+        address indexed token,
+        uint256 originalAmount,
+        uint256 adjustedAmount,
+        string reason
+    );
+
+    /**
+     * @dev Allows owner to whitelist addresses for fee withdrawal
+     */
+    function whitelistWithdrawAddress(address account) external onlyOwner {
+        require(account != address(0), "Invalid address");
+        require(!whitelistedWithdrawAddresses[account], "Address already whitelisted");
+        
+        whitelistedWithdrawAddresses[account] = true;
+        emit RoleOperation("whitelist_address", account, keccak256("withdraw"));
     }
 
     /**
-     * @dev View function to get current liquidity limits
-     * @return min The minimum liquidity required
-     * @return max The maximum liquidity allowed
+     * @dev Allows owner to remove addresses from withdrawal whitelist
      */
-    function getLiquidityLimits() external view returns (uint256 min, uint256 max) {
-        return (MIN_LIQUIDITY, maxLiquidityPerPool);
+    function removeWithdrawAddress(address account) external onlyOwner {
+        require(whitelistedWithdrawAddresses[account], "Address not whitelisted");
+        
+        whitelistedWithdrawAddresses[account] = false;
+        emit RoleOperation("revoke", account, keccak256("withdraw"));
+    }
+
+    // Add new event for withdrawal attempts
+    event WithdrawalAttempt(
+        address indexed caller,
+        bool isWhitelisted,
+        uint256 requestedAmount,
+        uint256 timestamp
+    );
+
+    // Add new events for engagement tracking
+    event EngagementChangeCalculated(
+        address indexed token,
+        uint256 oldCount,
+        uint256 newCount,
+        uint256 percentChange
+    );
+
+    event EngagementInitialized(
+        address indexed token,
+        uint256 initialCount,
+        uint256 timestamp
+    );
+
+    /**
+     * @dev Updates pool score and maintains sorted order
+     */
+    function updatePoolScore(address pool, uint256 newScore) internal {
+        // Replace multiple debug events with single metrics event
+        emit PoolMetrics(
+            pool,
+            coralReserves[pool],
+            poolActivity[pool].tradingVolume24h,
+            newScore
+        );
+
+        uint256 poolIndex = poolScoreIndex[pool];
+        
+        if (poolIndex == 0) {
+            // New pool - insert into sorted list
+            poolCount++;
+            poolIndex = poolCount;
+            poolScoreIndex[pool] = poolIndex;
+            
+            sortedPools[poolIndex] = SortedPool({
+                pool: pool,
+                score: newScore,
+                lastUpdateTime: block.timestamp,
+                nextIndex: 0,
+                prevIndex: 0
+            });
+
+            // Insert into sorted position
+            insertSortedPool(poolIndex);
+            
+            emit PoolOperation("pool_added", pool, newScore, block.timestamp);
+        } else {
+            // Update existing pool
+            SortedPool storage poolData = sortedPools[poolIndex];
+            uint256 oldScore = poolData.score;
+            poolData.score = newScore;
+            poolData.lastUpdateTime = block.timestamp;
+
+            // Reposition if score changed
+            if (newScore != oldScore) {
+                removeSortedPool(poolIndex);
+                insertSortedPool(poolIndex);
+            }
+            
+            emit PoolOperation("pool_updated", pool, oldScore, newScore);
+        }
+    }
+
+    /**
+     * @dev Inserts pool into sorted position
+     */
+    function insertSortedPool(uint256 poolIndex) internal {
+        SortedPool storage newPool = sortedPools[poolIndex];
+        
+        // If this is the first pool
+        if (topPoolIndex == 0) {
+            topPoolIndex = poolIndex;
+            return;
+        }
+
+        // Find insertion point
+        uint256 currentIndex = topPoolIndex;
+        uint256 prevIndex = 0;
+        
+        while (currentIndex != 0 && 
+               sortedPools[currentIndex].score > newPool.score) {
+            prevIndex = currentIndex;
+            currentIndex = sortedPools[currentIndex].nextIndex;
+        }
+
+        // Insert pool
+        if (prevIndex == 0) {
+            // Insert at top
+            newPool.nextIndex = topPoolIndex;
+            sortedPools[topPoolIndex].prevIndex = poolIndex;
+            topPoolIndex = poolIndex;
+        } else {
+            // Insert between pools
+            newPool.nextIndex = currentIndex;
+            newPool.prevIndex = prevIndex;
+            sortedPools[prevIndex].nextIndex = poolIndex;
+            if (currentIndex != 0) {
+                sortedPools[currentIndex].prevIndex = poolIndex;
+            }
+        }
+    }
+
+    /**
+     * @dev Removes pool from sorted list
+     */
+    function removeSortedPool(uint256 poolIndex) internal {
+        SortedPool storage pool = sortedPools[poolIndex];
+        
+        if (poolIndex == topPoolIndex) {
+            topPoolIndex = pool.nextIndex;
+        } else {
+            if (pool.prevIndex != 0) {
+                sortedPools[pool.prevIndex].nextIndex = pool.nextIndex;
+            }
+            if (pool.nextIndex != 0) {
+                sortedPools[pool.nextIndex].prevIndex = pool.prevIndex;
+            }
+        }
+    }
+
+    /**
+     * @dev Gets top N pools by score
+     */
+    function getTopPools(uint256 n) external view returns (address[] memory) {
+        address[] memory topPools = new address[](n);
+        uint256 count = 0;
+        uint256 currentIndex = topPoolIndex;
+        
+        while (currentIndex != 0 && count < n) {
+            SortedPool storage pool = sortedPools[currentIndex];
+            if (isPoolActive(pool.pool)) {
+                topPools[count] = pool.pool;
+                count++;
+            }
+            currentIndex = pool.nextIndex;
+        }
+        
+        return topPools;
+    }
+
+    // Add new events for pool tracking
+    event PoolAdded(
+        address indexed pool,
+        uint256 initialScore,
+        uint256 index
+    );
+
+    event PoolUpdated(
+        address indexed pool,
+        uint256 oldScore,
+        uint256 newScore,
+        uint256 index
+    );
+
+    event PoolLiquidityCheck(
+        address indexed pool,
+        uint256 currentReserve,
+        uint256 maxLimit
+    );
+
+    /**
+     * @dev Returns the minimum of two numbers
+     */
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    /**
+     * @dev If you need a view version that doesn't emit events, 
+     * create a separate function
+     */
+    function calculatePoolScoreView(
+        address pool
+    ) internal view returns (uint256) {
+        // Cache values to save gas
+        uint256 liquidity = coralReserves[pool];
+        uint256 volume = poolActivity[pool].tradingVolume24h;
+
+        // Calculate dynamic weights based on market conditions
+        uint256 dynamicWeightLiquidity = 5 + (liquidity / (10_000 * 1e18));
+        uint256 dynamicWeightVolume = 3 + (volume / (5_000 * 1e18));
+
+        // Cap weights to prevent overflow
+        dynamicWeightLiquidity = dynamicWeightLiquidity > 10 ? 10 : dynamicWeightLiquidity;
+        dynamicWeightVolume = dynamicWeightVolume > 10 ? 10 : dynamicWeightVolume;
+
+        // Calculate score with dynamic market-based weights
+        uint256 liquidityScore = liquidity * dynamicWeightLiquidity;
+        uint256 volumeScore = volume * dynamicWeightVolume;
+        
+        // Calculate final score
+        return (liquidityScore + volumeScore) / 10;
+    }
+
+    /**
+     * @dev Adds creator token liquidity to the pool without requiring CORAL tokens
+     * @param creatorToken The creator token address
+     * @param creatorTokenAmount The amount of creator tokens to add
+     */
+    function addCreatorTokenLiquidity(
+        address creatorToken,
+        uint256 creatorTokenAmount
+    ) external nonReentrant {
+        // Validate inputs
+        require(isTrackedPool[creatorToken], "Pool not tracked");
+        require(!priceDiscovery[creatorToken].isInDiscovery, "Token in price discovery");
+        require(creatorTokenAmount >= MIN_LIQUIDITY, "Amount below minimum");
+        
+        // Get current reserves
+        (uint256 reserveCreator, uint256 reserveCoral) = getReserves(creatorToken);
+        
+        // Ensure CORAL reserve exists
+        require(reserveCoral > 0, "No CORAL liquidity exists");
+        
+        // Transfer creator tokens from sender to this contract
+        IERC20(creatorToken).safeTransferFrom(msg.sender, address(this), creatorTokenAmount);
+        
+        // Update reserves
+        _updateReserves(creatorToken, reserveCreator + creatorTokenAmount, reserveCoral);
+        
+        // Emit event
+        emit LiquidityAdded(
+            creatorToken,
+            creatorTokenAmount,
+            0, // No CORAL tokens added
+            creatorTokenAmount // Liquidity amount equals creator token amount
+        );
     }
 
 }

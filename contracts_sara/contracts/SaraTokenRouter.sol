@@ -98,10 +98,28 @@ contract SaraTokenRouter is Ownable, ReentrancyGuard {
      * @dev Lists a new creator token in the DEX
      */
     function listNewCreatorToken(address creatorToken) public onlyOwner {
-        require(!listedTokens[creatorToken], "Token already listed");
-        listedTokens[creatorToken] = true;
-        emit TokenListed(creatorToken);
+    require(creatorToken != address(0), "Invalid token address");
+    require(!listedTokens[creatorToken], "Token already listed");
+    
+    // Debugging: Log total supply before listing
+    uint256 totalSupply = IERC20(creatorToken).totalSupply();
+    require(totalSupply > 0, "Token has zero supply");
+
+    require(!inPriceDiscovery[creatorToken], "Token still in price discovery");
+
+    // Debugging: Check if the pool is tracked
+    bool isTracked = liquidityManager.isTrackedPool(creatorToken);
+    require(isTracked, "Liquidity pool not tracked!");
+
+    // Debugging: Log tracking confirmation
+    emit TokenListed(creatorToken);
+
+    listedTokens[creatorToken] = true;
     }
+
+
+
+
 
     /**
      * @dev Updates AI rebalance through liquidity manager

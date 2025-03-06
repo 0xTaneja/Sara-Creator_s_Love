@@ -51,7 +51,44 @@ async function main() {
   console.log("\n2. Using existing Coral Token:", CORAL_TOKEN_ADDRESS);
   const coralTokenAddress = CORAL_TOKEN_ADDRESS;
 
-  // 3. Deploy SaraLiquidityManager
+  // Use IERC20 interface instead of CoralToken
+  const coralToken = await ethers.getContractAt("IERC20", CORAL_TOKEN_ADDRESS);
+
+  // Add contract existence check
+  console.log("\n🔍 Verifying Coral Token contract...");
+  try {
+      // Try to call basic IERC20 functions to verify contract
+      const [symbol, decimals, totalSupply] = await Promise.all([
+          coralToken.symbol?.() || "CORAL",  // Handle optional ERC20 functions
+          coralToken.decimals?.() || 18,
+          coralToken.totalSupply()
+      ]);
+
+      console.log(`✅ Coral Token verified:`);
+      console.log(`   Symbol: ${symbol}`);
+      console.log(`   Decimals: ${decimals}`);
+      console.log(`   Total Supply: ${ethers.formatEther(totalSupply)}`);
+      console.log(`   Address: ${CORAL_TOKEN_ADDRESS}`);
+
+      // Additional verification - check if basic transfer function exists
+      if (typeof coralToken.transfer !== 'function') {
+          throw new Error("Contract missing transfer function");
+      }
+  } catch (err) {
+      console.error(`\n❌ Coral Token verification failed at ${CORAL_TOKEN_ADDRESS}`);
+      console.error("Error details:", err.message);
+      console.error("\nPossible causes:");
+      console.error("- Contract doesn't exist at this address");
+      console.error("- Contract is not an ERC20 token");
+      console.error("- Network connection issues");
+      process.exit(1);
+  }
+
+  // Continue with balance check
+  const deployerBalance = await coralToken.balanceOf(deployer.address);
+  console.log(`Deployer Coral Token Balance: ${ethers.formatEther(deployerBalance)} S`);
+
+  // 3. First deploy SaraLiquidityManager
   console.log("\n3. Deploying SaraLiquidityManager...");
   const SaraLiquidityManager = await ethers.getContractFactory("SaraLiquidityManager");
   const liquidityManager = await SaraLiquidityManager.deploy(coralTokenAddress);
@@ -59,27 +96,39 @@ async function main() {
   const liquidityManagerAddress = await liquidityManager.getAddress();
   console.log("✅ SaraLiquidityManager deployed to:", liquidityManagerAddress);
 
+  // Now we can do the initial liquidity transfer
+  const initialLiquidityAmount = ethers.parseEther("10");
 
-// 🚀 Send Initial S Tokens to Liquidity Manager
-console.log("\n💰 Checking deployer's Coral Token balance...");
-const coralToken = await ethers.getContractAt("IERC20", CORAL_TOKEN_ADDRESS);
+  // Check if deployer has enough tokens
+  if (deployerBalance < initialLiquidityAmount) {
+      console.error(`❌ Not enough Coral tokens! Required: ${ethers.formatEther(initialLiquidityAmount)}, Available: ${ethers.formatEther(deployerBalance)}`);
+      process.exit(1);
+  }
 
-const deployerBalance = await coralToken.balanceOf(deployer.address);
-console.log(`Deployer Coral Token Balance: ${ethers.formatEther(deployerBalance)} S`);
+  // Before transfer - get initial balance
+  const beforeBalance = await coralToken.balanceOf(liquidityManagerAddress);
+  console.log(`📊 Initial LM Balance: ${ethers.formatEther(beforeBalance)} CORAL`);
 
-const initialLiquidityAmount = ethers.parseEther("10"); // Send 1000 Coral tokens
+  // Perform transfer
+  console.log("\n💰 Sending Initial Coral Tokens to Liquidity Manager...");
+  await (await coralToken.transfer(liquidityManagerAddress, initialLiquidityAmount)).wait();
 
-// 🚨 Check if deployer has enough tokens
-if (deployerBalance < initialLiquidityAmount) {
-    console.error(`❌ Not enough Coral tokens! Required: ${ethers.formatEther(initialLiquidityAmount)}, Available: ${ethers.formatEther(deployerBalance)}`);
-    process.exit(1); // Stop execution
-}
+  // After transfer - verify balance change
+  const afterBalance = await coralToken.balanceOf(liquidityManagerAddress);
+  console.log(`📊 Final LM Balance: ${ethers.formatEther(afterBalance)} CORAL`);
 
-// ✅ Proceed with transfer if deployer has enough S tokens
-console.log("\n💰 Sending Initial Coral Tokens to Liquidity Manager...");
-await coralToken.transfer(liquidityManagerAddress, initialLiquidityAmount);
-console.log(`✅ Transferred ${ethers.formatEther(initialLiquidityAmount)} Coral tokens to Liquidity Manager`);
+  // Calculate actual transferred amount
+  const actualTransferred = afterBalance - beforeBalance;
 
+  // Verify transfer succeeded with exact amount
+  if (actualTransferred.toString() !== initialLiquidityAmount.toString()) {
+      console.error(`❌ Transfer verification failed!`);
+      console.error(`Expected: ${ethers.formatEther(initialLiquidityAmount)} CORAL`);
+      console.error(`Actual: ${ethers.formatEther(actualTransferred)} CORAL`);
+      process.exit(1);
+  }
+
+  console.log(`✅ Verified transfer of ${ethers.formatEther(initialLiquidityAmount)} CORAL tokens to Liquidity Manager`);
 
   // 4. Deploy SaraDEX
   console.log("\n4. Deploying SaraDEX...");
@@ -107,7 +156,7 @@ console.log(`✅ Transferred ${ethers.formatEther(initialLiquidityAmount)} Coral
   console.log("1. Setting DEX in Liquidity Manager...");
 
   // Set DEX instead of granting role
-  await liquidityManager.setDEX(saraDexAddress);
+  await (await liquidityManager.setDEX(saraDexAddress)).wait();
   console.log("✅ DEX set in Liquidity Manager");
 
   // Calculate and format gas cost once

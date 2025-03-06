@@ -1,0 +1,16 @@
+{
+  "network": "sonic",
+  "creatorToken": {
+    "proxy": "0x55Cb74029f69110A640b47FE5519F5a7BcD8789d",
+    "implementation": "0x7B8604E8589abBf3cBD899Ba06769fFD3Df4b6C9"
+  },
+  "sara": {
+    "coralToken": "0xAF93888cbD250300470A1618206e036E11470149",
+    "liquidityManager": "0xfc9e1ef9C75678384AD69817891855f69665fA65",
+    "saraDex": "0x8be8542fD5DCB9b0BcE9E0F722abd02E314704D6",
+    "saraRouter": "0x44b0ee72543C8c260Afc1554F9688AFEA27fd3F1"
+  },
+  "deployer": "0x045c5A451C51c5cd3D5aD81F2eBe6848F8c87FFB",
+  "timestamp": "2025-02-27T20:20:02.940Z",
+  "gasCost": "0.0100306712"
+}

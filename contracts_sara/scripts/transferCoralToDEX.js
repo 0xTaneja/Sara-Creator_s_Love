@@ -7,18 +7,20 @@ async function main() {
 
     const [deployer] = await ethers.getSigners();
 
-    // Contract addresses
-    const SARA_LIQUIDITY_MANAGER = "0x12017A0e4F08d839703f69D54Bee63c25e063dA0";
-    const SARA_DEX = "0x214bBfA09Ff868bCb5380B0Bf2A24050478Ac958";
-    const CORAL_TOKEN = "0xAF93888cbD250300470A1618206e036E11470149";
+    // Contract addresses - Updated from latest deployment
+    const CONTRACT_ADDRESSES = {
+        CORAL_TOKEN: "0xAF93888cbD250300470A1618206e036E11470149",
+        SARA_DEX: "0x380c13351758294cCF41CA0c14B3bb6f8268Acd4",
+        LIQUIDITY_MANAGER: "0x818A94419E0D1B9e990A912d601Ae66c517B9B82"
+    };
 
     // Get contract instances
-    const liquidityManager = await ethers.getContractAt("SaraLiquidityManager", SARA_LIQUIDITY_MANAGER);
-    const coralTokenContract = await ethers.getContractAt("IERC20", CORAL_TOKEN);
+    const liquidityManager = await ethers.getContractAt("SaraLiquidityManager", CONTRACT_ADDRESSES.LIQUIDITY_MANAGER);
+    const coralTokenContract = await ethers.getContractAt("IERC20", CONTRACT_ADDRESSES.CORAL_TOKEN);
 
     console.log("Checking initial balances...");
-    const initialDexBalance = await coralTokenContract.balanceOf(SARA_DEX);
-    const initialLmBalance = await coralTokenContract.balanceOf(SARA_LIQUIDITY_MANAGER);
+    const initialDexBalance = await coralTokenContract.balanceOf(CONTRACT_ADDRESSES.SARA_DEX);
+    const initialLmBalance = await coralTokenContract.balanceOf(CONTRACT_ADDRESSES.LIQUIDITY_MANAGER);
 
     console.log("DEX CORAL Balance:", ethers.formatEther(initialDexBalance));
     console.log("Liquidity Manager CORAL Balance:", ethers.formatEther(initialLmBalance));
@@ -32,7 +34,7 @@ async function main() {
 
     try {
         console.log("\nApproving Liquidity Manager to transfer CORAL tokens...");
-        const approveTx = await coralTokenContract.connect(deployer).approve(SARA_LIQUIDITY_MANAGER, amountToTransfer);
+        const approveTx = await coralTokenContract.connect(deployer).approve(CONTRACT_ADDRESSES.LIQUIDITY_MANAGER, amountToTransfer);
         await approveTx.wait();
         console.log("✅ Approval granted");
 
@@ -43,8 +45,8 @@ async function main() {
         console.log("✅ CORAL tokens transferred to DEX, Gas Used:", receipt.gasUsed.toString());
 
         // Verify new balances
-        const finalDexBalance = await coralTokenContract.balanceOf(SARA_DEX);
-        const finalLmBalance = await coralTokenContract.balanceOf(SARA_LIQUIDITY_MANAGER);
+        const finalDexBalance = await coralTokenContract.balanceOf(CONTRACT_ADDRESSES.SARA_DEX);
+        const finalLmBalance = await coralTokenContract.balanceOf(CONTRACT_ADDRESSES.LIQUIDITY_MANAGER);
 
         console.log("\n🔍 Balance Updates:");
         console.log("- DEX CORAL Balance Change:", ethers.formatEther(finalDexBalance.sub(initialDexBalance)));

@@ -1,0 +1,228 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-coral: #FF7F50;
+  --color-coral-dark: #E56A45;
+  --color-coral-light: #FFA07A;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 font-sans;
+}
+
+.btn {
+  @apply inline-flex justify-center items-center px-4 py-2 rounded-md text-sm font-medium focus:outline-none transition-colors;
+}
+
+.btn-primary {
+  @apply bg-coral text-white hover:bg-coral-dark;
+}
+
+.btn-secondary {
+  @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50;
+}
+
+.input {
+  @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-coral focus:border-coral;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full hover:bg-gray-400;
+}
+
+/* Animation for loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Card hover effects */
+.hover-card {
+  @apply transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1;
+}
+
+/* Gradient backgrounds */
+.bg-gradient-coral {
+  background: linear-gradient(135deg, var(--color-coral) 0%, var(--color-coral-dark) 100%);
+}
+
+/* Custom tooltip */
+.tooltip {
+  @apply relative inline-block;
+}
+
+.tooltip .tooltip-text {
+  @apply invisible absolute z-10 p-2 text-xs text-white bg-gray-800 rounded-md opacity-0 transition-opacity duration-300 w-max max-w-xs;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tooltip:hover .tooltip-text {
+  @apply visible opacity-100;
+}
+
+/* Custom switch/toggle */
+.switch {
+  @apply relative inline-block w-12 h-6;
+}
+
+.switch input {
+  @apply opacity-0 w-0 h-0;
+}
+
+.slider {
+  @apply absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 transition-all duration-300 rounded-full;
+}
+
+.slider:before {
+  @apply absolute content-[''] h-5 w-5 left-0.5 bottom-0.5 bg-white transition-all duration-300 rounded-full;
+}
+
+input:checked + .slider {
+  @apply bg-coral;
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+/* Custom badge */
+.badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.badge-success {
+  @apply bg-green-100 text-green-800;
+}
+
+.badge-error {
+  @apply bg-red-100 text-red-800;
+}
+
+.badge-warning {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.badge-info {
+  @apply bg-blue-100 text-blue-800;
+}
+
+/* Custom notification */
+.notification {
+  @apply fixed right-4 top-4 p-4 rounded-lg shadow-lg max-w-md z-50 transform transition-all duration-500 ease-in-out;
+}
+
+.notification-enter {
+  @apply translate-x-full opacity-0;
+}
+
+.notification-enter-active {
+  @apply translate-x-0 opacity-100;
+}
+
+.notification-exit {
+  @apply translate-x-0 opacity-100;
+}
+
+.notification-exit-active {
+  @apply translate-x-full opacity-0;
+}
+
+/* Custom modal */
+.modal-backdrop {
+  @apply fixed inset-0 bg-black bg-opacity-50 z-40;
+}
+
+.modal {
+  @apply fixed inset-0 flex items-center justify-center z-50;
+}
+
+.modal-content {
+  @apply bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto;
+}
+
+.modal-header {
+  @apply px-6 py-4 border-b border-gray-200;
+}
+
+.modal-body {
+  @apply px-6 py-4;
+}
+
+.modal-footer {
+  @apply px-6 py-4 border-t border-gray-200 flex justify-end space-x-2;
+}
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 min-h-screen;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+  
+  .btn-primary {
+    @apply bg-coral text-white hover:bg-coral-dark;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary-500 text-white hover:bg-secondary-600;
+  }
+  
+  .btn-outline {
+    @apply border border-gray-300 hover:bg-gray-100;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-md p-6;
+  }
+  
+  .input {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-coral;
+  }
+  
+  .select {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-coral;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-green {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .badge-red {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .badge-blue {
+    @apply bg-blue-100 text-blue-800;
+  }
+  
+  .badge-purple {
+    @apply bg-purple-100 text-purple-800;
+  }
+} 

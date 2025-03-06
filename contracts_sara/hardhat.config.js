@@ -24,6 +24,7 @@ module.exports = {
       accounts: [DEPLOYER_PRIVATE_KEY,
         USER_PRIVATE_KEY
       ],
+      loggingEnabled: true,
       chainId: 57054,
     },
     // etherscan: {

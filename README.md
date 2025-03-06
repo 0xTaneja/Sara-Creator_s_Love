@@ -190,3 +190,26 @@ We now have a [paper](https://arxiv.org/pdf/2501.06781) you can cite for the Eli
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=elizaos/eliza&type=Date)](https://star-history.com/#elizaos/eliza&Date)
+
+## Sara Creator Token Platform
+
+The Sara platform allows users to trade creator tokens based on YouTube channel metrics. It includes:
+
+- A smart contract system for minting and trading creator tokens
+- A YouTube monitoring system that tracks channel metrics and mints tokens for eligible creators
+- A web client for users to view and trade tokens
+- An API server that provides token data from MongoDB
+
+### Running the Sara Platform
+
+1. Start the MongoDB database
+2. Start the API server:
+   ```bash
+   cd packages/client-twitter
+   npm run start-api
+   ```
+3. Start the client application:
+   ```bash
+   cd sara-client
+   npm start
+   ```
