@@ -1,6 +1,22 @@
-# Sara DEX Client
+# Sara AI Agent
 
-A decentralized exchange (DEX) for trading creator tokens, powered by AI.
+Sara is an AI-powered social market maker that analyzes creator engagement metrics, market trends, and social sentiment to provide real-time insights and predictions for Creator Coins.
+
+![Sara AI Agent](https://imgur.com/placeholder-image.jpg)
+
+## 🚀 About Sara AI Agent
+
+Sara AI Agent is a revolutionary platform for the creator economy that combines:
+
+- **AI-Powered Creator Token Market** – Tokens minted based on engagement metrics
+- **DEX Trading Platform** – Buy/sell creator tokens with a fully functional decentralized exchange
+- **Real-Time Market Insights** – AI-generated predictions and market analysis
+- **Dynamic Trending Leaderboard** – Discover top creator tokens
+
+## 🌐 Connect With Sara
+
+- **Twitter**: [https://x.com/Sara_AiAgent](https://x.com/Sara_AiAgent)
+- **Discord**: Coming soon!
 
 ## Features
 
@@ -9,6 +25,7 @@ A decentralized exchange (DEX) for trading creator tokens, powered by AI.
 - Connect your wallet to execute trades
 - Real-time price updates and market data
 - Responsive design for desktop and mobile
+- AI-powered insights and predictions
 
 ## Technology Stack
 
@@ -16,6 +33,8 @@ A decentralized exchange (DEX) for trading creator tokens, powered by AI.
 - Tailwind CSS for styling
 - Ethers.js for blockchain interactions
 - React Router for navigation
+- AI-driven market analysis
+- MongoDB for storing swap events and market data
 
 ## Getting Started
 
@@ -56,7 +75,7 @@ This command will start:
 - The Vite frontend development server
 - The Express API server for storing and retrieving swap events
 
-4. Open your browser and navigate to `http://localhost:3000`
+5. Open your browser and navigate to `http://localhost:3000`
 
 ## Project Structure
 
@@ -73,6 +92,10 @@ src/
 ## Smart Contract Integration
 
 The application interacts with the SaraDEX smart contract deployed on the Sonic Testnet. The contract address and ABI are configured in the Web3Context.
+
+## Roadmap
+
+Visit our [Roadmap](/roadmap) to see our future development plans and upcoming features.
 
 ## Contributing
 
