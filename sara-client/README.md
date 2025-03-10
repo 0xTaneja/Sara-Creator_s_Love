@@ -39,12 +39,22 @@ npm install
 yarn install
 ```
 
-3. Start the development server
+3. Set up MongoDB:
+   - Install MongoDB locally or use MongoDB Atlas
+   - Create a database named "sara"
+   - Set the MongoDB URI in your environment variables (optional):
+     ```
+     export MONGODB_URI=mongodb://localhost:27017/sara
+     ```
+
+4. Start the development server
 ```bash
-npm start
-# or
-yarn start
+npm run dev
 ```
+
+This command will start:
+- The Vite frontend development server
+- The Express API server for storing and retrieving swap events
 
 4. Open your browser and navigate to `http://localhost:3000`
 
@@ -76,3 +86,89 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Sara AI for powering the DEX
 - Sonic Testnet for blockchain infrastructure
+
+## Setup
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Set up MongoDB:
+   - Install MongoDB locally or use MongoDB Atlas
+   - Create a database named "sara"
+   - Set the MongoDB URI in your environment variables (optional):
+     ```
+     export MONGODB_URI=mongodb://localhost:27017/sara
+     ```
+
+3. Run the development server:
+```bash
+npm run dev
+```
+
+This command will start:
+- The Vite frontend development server
+- The Express API server for storing and retrieving swap events
+
+## Features
+
+- Trade tokens using the SARA DEX
+- View real-time price charts with multiple timeframes
+- See complete trade history for tokens
+- Buy and sell creator tokens with CORAL
+
+## Price Charts and Trade History
+
+The application now includes:
+- Real-time price updates using lightweight-charts
+- MongoDB integration for persistent storage of swap events
+- RESTful API for retrieving historical price data
+- Candlestick charts with multiple timeframe options
+
+## API Endpoints
+
+- `POST /api/swaps` - Save a swap event
+- `GET /api/swaps?tokenAddress={address}` - Get swap events for a token
+- `GET /api/swaps/latest-price?tokenAddress={address}` - Get latest price for a token
+- `GET /api/swaps/candles?tokenAddress={address}&timeframe=1h` - Get candlestick data
+
+## Additional Information
+
+For more details about the SARA protocol, please refer to the contract documentation.
+
+## Server API
+
+The project includes a TypeScript-based Express server that provides API endpoints for swap events and price data. The server is built with the following architecture:
+
+### API Endpoints
+
+- `POST /api/swaps` - Save a new swap event
+- `GET /api/swaps` - Get swap events for a token
+- `GET /api/price/:tokenAddress` - Get latest price for a token
+- `GET /api/candles/:tokenAddress` - Get candle data for charts
+
+### Running the Server
+
+Development mode:
+```bash
+npm run server
+```
+
+Production mode:
+```bash
+npm run server:prod
+```
+
+### Server Configuration
+
+The server uses MongoDB to store swap events and provides real-time price data for tokens. You can configure the MongoDB connection by setting the `MONGODB_URI` environment variable or it will default to `mongodb://localhost:27017/sara_db`.
+
+### Server Build Process
+
+The server TypeScript files are compiled using a dedicated tsconfig:
+```bash
+npm run build:server
+```
+
+This creates JavaScript files in the `dist/api` directory that are used in production.

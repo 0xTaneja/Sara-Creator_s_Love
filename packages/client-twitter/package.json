@@ -39,7 +39,8 @@
         "test:coverage": "vitest run --coverage",
         "start-api": "ts-node src/api/start-server.ts",
         "start-api-simple": "tsx src/api/simple-server.js",
-        "start-api-full": "tsx src/api/full-server.js"
+        "start-api-full": "tsx src/api/full-server.js",
+        "start-api-custom-port": "API_PORT=3004 tsx src/api/full-server.js"
     },
     "peerDependencies": {
         "whatwg-url": "7.1.0"

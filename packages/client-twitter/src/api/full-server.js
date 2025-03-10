@@ -13,7 +13,7 @@ console.log('Starting Full Sara API Server...');
 
 // Initialize express app
 const app = express();
-const PORT = process.env.API_PORT || 3001;
+const PORT = process.env.API_PORT || 3004;
 
 // Connect to MongoDB
 try {

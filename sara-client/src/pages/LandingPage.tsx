@@ -52,10 +52,13 @@ const LandingPage = () => {
           </p>
 
           {/* Wallet Address */}
-          <div className="bg-gray-100 border border-gray-300 mt-6 px-6 py-3 rounded-lg">
+          <div className="bg-gray-100 border border-gray-300 mt-6 px-6 py-3 rounded-lg relative">
             <span className="text-gray-600 text-sm truncate">
               0x8hVzPgFoqEQmNNoghr5WbPY1LEjW8GZgbLRwuwHpump
             </span>
+            <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+              Token Soon 🚀
+            </div>
           </div>
 
           {/* Explore Button (Centered) */}

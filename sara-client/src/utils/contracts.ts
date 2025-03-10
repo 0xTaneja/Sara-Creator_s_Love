@@ -1,26 +1,54 @@
-// Contract addresses
-export const CONTRACT_ADDRESSES = {
-  SARA_DEX: '0x123456789abcdef123456789abcdef123456789a', // Replace with actual address
-  CORAL_TOKEN: '0xabcdef123456789abcdef123456789abcdef1234', // Replace with actual address
-  CREATOR_TOKEN_FACTORY: '0x789abcdef123456789abcdef123456789abcdef12', // Replace with actual address
-};
+import { CONTRACT_ADDRESSES } from '../config';
 
 // ABIs
 export const SARA_DEX_ABI = [
   // Function: swapCoralForCreatorToken
-  "function swapCoralForCreatorToken(address creatorToken, uint256 amountIn, uint256 minAmountOut, uint256 maxSlippage) external returns (uint256)",
+  "function swapCoralForCreatorToken(address creatorToken, uint256 amountIn, uint256 minAmountOut, uint256 slippage) external returns (uint256)",
   
   // Function: swapCreatorTokenForCoral
-  "function swapCreatorTokenForCoral(address creatorToken, uint256 amountIn, uint256 minAmountOut, uint256 maxSlippage) external",
+  "function swapCreatorTokenForCoral(address creatorToken, uint256 amountIn, uint256 minAmountOut, uint256 slippage) external returns (uint256)",
   
   // Function: getAmountOut
   "function getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut) public pure returns (uint256)",
   
-  // Function: getAmountOutWithFees
-  "function getAmountOutWithFees(uint256 amountIn, address[] calldata path) external view returns (uint256)",
+  // Function: getReserves
+  "function getReserves(address creatorToken) external view returns (uint256 creatorReserve, uint256 coralReserve)",
   
-  // Event: CoralSwapExecuted
-  "event CoralSwapExecuted(address indexed user, address indexed creatorToken, uint256 amountIn, uint256 amountOut, uint256 fee)"
+  // Function: lastSwapTimestamp
+  "function lastSwapTimestamp(address user) external view returns (uint256)",
+  
+  // Function: MIN_TIME_BETWEEN_SWAPS
+  "function MIN_TIME_BETWEEN_SWAPS() external view returns (uint256)",
+  
+  // Function: getSlippageSettings
+  "function getSlippageSettings() external view returns (uint256 defaultSlippage, uint256 currentMaxSlippage, uint256 absoluteMaximum)",
+  
+  // Event: Swap
+  "event Swap(address indexed sender, uint256 amountIn, uint256 amountOut, address indexed creatorToken, bool isCoralToCT)"
+];
+
+export const SARA_TOKEN_ROUTER_ABI = [
+  // Function: swapCoralForToken
+  "function swapCoralForToken(address creatorToken, uint256 amountIn, uint256 minAmountOut) external returns (uint256)",
+  
+  // Function: swapTokenForCoral
+  "function swapTokenForCoral(address creatorToken, uint256 amountIn, uint256 minAmountOut) external returns (uint256)",
+  
+  // Function: getAmountOut
+  "function getAmountOut(address creatorToken, uint256 amountIn, bool isCoralToCreator) external view returns (uint256)",
+  
+  // Function: listNewCreatorToken
+  "function listNewCreatorToken(address creatorToken) external",
+  
+  // Function: listedTokens
+  "function listedTokens(address) external view returns (bool)"
+];
+
+export const SARA_LIQUIDITY_MANAGER_ABI = [
+  // Function: getReserves
+  "function getReserves(address creatorToken) external view returns (uint256, uint256)",
+  // Function: getTokenBalance
+  "function getTokenBalance(address token, address account) external view returns (uint256)"
 ];
 
 export const ERC20_ABI = [

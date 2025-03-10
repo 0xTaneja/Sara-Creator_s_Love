@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ethers } from 'ethers';
-import { CONTRACT_ADDRESSES, SARA_DEX_ABI, ERC20_ABI } from '../utils/contracts';
+import { SARA_DEX_ABI, ERC20_ABI } from '../utils/contracts';
+import { CONTRACT_ADDRESSES } from '../config';
 
 // Define types for our context
 interface Web3ContextType {
@@ -28,6 +29,9 @@ const Web3Context = createContext<Web3ContextType>({
   error: null,
 });
 
+// Local storage key for persisting connection state
+const WALLET_CONNECTED_KEY = 'sara_wallet_connected';
+
 // Provider component
 export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
@@ -37,6 +41,7 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasInitialized, setHasInitialized] = useState<boolean>(false);
 
   // Initialize provider from window.ethereum
   useEffect(() => {
@@ -47,8 +52,10 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const web3Provider = new ethers.providers.Web3Provider(window.ethereum, 'any');
           setProvider(web3Provider);
 
-          // Check if already connected
+          // Check if already connected or if we should auto-connect
+          const shouldAutoConnect = localStorage.getItem(WALLET_CONNECTED_KEY) === 'true';
           const accounts = await web3Provider.listAccounts();
+          
           if (accounts.length > 0) {
             const signer = web3Provider.getSigner();
             const address = await signer.getAddress();
@@ -58,6 +65,32 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setAccount(address);
             setChainId(network.chainId);
             setIsConnected(true);
+            localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
+          } else if (shouldAutoConnect) {
+            // Try to reconnect if previously connected
+            try {
+              const requestedAccounts = await window.ethereum.request({ 
+                method: 'eth_requestAccounts',
+                params: []
+              });
+              
+              if (requestedAccounts.length > 0) {
+                const signer = web3Provider.getSigner();
+                const address = await signer.getAddress();
+                const network = await web3Provider.getNetwork();
+                
+                setSigner(signer);
+                setAccount(address);
+                setChainId(network.chainId);
+                setIsConnected(true);
+              } else {
+                // If auto-connect fails, clear the stored state
+                localStorage.removeItem(WALLET_CONNECTED_KEY);
+              }
+            } catch (err) {
+              console.error('Auto-connect failed:', err);
+              localStorage.removeItem(WALLET_CONNECTED_KEY);
+            }
           }
 
           // Setup event listeners
@@ -71,6 +104,8 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         setError('No Ethereum browser extension detected. Please install MetaMask.');
       }
+      
+      setHasInitialized(true);
     };
 
     const handleAccountsChanged = (accounts: string[]) => {
@@ -84,6 +119,7 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const signer = provider.getSigner();
           setSigner(signer);
           setIsConnected(true);
+          localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
         }
       }
     };
@@ -111,7 +147,7 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
         window.ethereum.removeListener('disconnect', handleDisconnect);
       }
     };
-  }, [account]);
+  }, []);
 
   const connectWallet = async () => {
     if (!window.ethereum) {
@@ -141,9 +177,13 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setAccount(address);
       setChainId(network.chainId);
       setIsConnected(true);
+      
+      // Save connection state
+      localStorage.setItem(WALLET_CONNECTED_KEY, 'true');
     } catch (err: any) {
       console.error('Error connecting wallet:', err);
       setError(err.message || 'Failed to connect wallet');
+      localStorage.removeItem(WALLET_CONNECTED_KEY);
     } finally {
       setIsConnecting(false);
     }
@@ -156,6 +196,9 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setChainId(null);
     setIsConnected(false);
     setError(null);
+    
+    // Clear connection state
+    localStorage.removeItem(WALLET_CONNECTED_KEY);
   };
 
   return (

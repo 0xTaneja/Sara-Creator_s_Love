@@ -1,10 +1,58 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Token } from '../utils/types';
+import usePriceChange from '../hooks/usePriceChange';
 
 interface TrendingTokensProps {
   tokens: Token[];
 }
+
+// Add a new PriceChangeCell component to handle individual price changes
+const PriceChangeCell: React.FC<{ token: Token }> = ({ token }) => {
+  const { priceChange, isLoading } = usePriceChange(token.tokenAddress || token.address);
+  
+  // If still loading, show loading indicator
+  if (isLoading) {
+    return (
+      <span className="px-2 inline-flex items-center text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+        <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Calculating...
+      </span>
+    );
+  }
+  
+  // Handle null or NaN values
+  if (priceChange === null || isNaN(priceChange)) {
+    return (
+      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+        0.00%
+      </span>
+    );
+  }
+  
+  // Round to 2 decimal places with validation
+  const roundedChange = Math.round(priceChange * 100) / 100;
+  
+  // If change is very small (between -0.01 and 0.01), show neutral color
+  if (Math.abs(roundedChange) < 0.01) {
+    return (
+      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+        0.00%
+      </span>
+    );
+  }
+  
+  return (
+    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+      roundedChange >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+    }`}>
+      {roundedChange >= 0 ? '+' : ''}{roundedChange.toFixed(2)}%
+    </span>
+  );
+};
 
 const TrendingTokens: React.FC<TrendingTokensProps> = ({ tokens }) => {
   // Helper function to get token address (handle both address and tokenAddress fields)
@@ -75,9 +123,7 @@ const TrendingTokens: React.FC<TrendingTokensProps> = ({ tokens }) => {
                 ${token.price.toFixed(2)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${token.priceChange >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {token.priceChange >= 0 ? '+' : ''}{token.priceChange.toFixed(2)}%
-                </span>
+                <PriceChangeCell token={token} />
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {token.subscribers || 'N/A'}
@@ -98,14 +144,9 @@ const TrendingTokens: React.FC<TrendingTokensProps> = ({ tokens }) => {
                 )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <Link to={`/token/${token.id}`} className="text-indigo-600 hover:text-indigo-900 mr-4">
-                  Details
+                <Link to={`/token/${token.id}`} className="text-indigo-600 hover:text-indigo-900">
+                  Trade
                 </Link>
-                {getTokenAddress(token) && (
-                  <Link to={`/swap?token=${getTokenAddress(token)}`} className="text-indigo-600 hover:text-indigo-900">
-                    Trade
-                  </Link>
-                )}
               </td>
             </tr>
           ))}

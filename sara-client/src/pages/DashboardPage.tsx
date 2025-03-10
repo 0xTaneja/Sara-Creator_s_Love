@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { useWeb3 } from '../contexts/Web3Context';
 import { useLoading } from '../contexts/LoadingContext';
 import TrendingTokens from '../components/TrendingTokens';
-import TopCreators from '../components/TopCreators';
 import { Token } from '../utils/types';
 import axios from 'axios';
 import { API_URL } from '../config';
@@ -220,9 +219,7 @@ const tradingSteps = [
 
 const DashboardPage: React.FC = () => {
   const [trendingTokens, setTrendingTokens] = useState<Token[]>([]);
-  const [trendingCreators, setTrendingCreators] = useState<CreatorType[]>([]);
   const [isLoadingTokens, setIsLoadingTokens] = useState<boolean>(true);
-  const [isLoadingCreators, setIsLoadingCreators] = useState<boolean>(true);
   const { account, connectWallet } = useWeb3();
   const [timeRange, setTimeRange] = useState('1d');
   const [recentActivity, setRecentActivity] = useState(mockRecentActivity);
@@ -255,6 +252,7 @@ const DashboardPage: React.FC = () => {
           // Format numbers for display
           views: typeof token.views === 'number' ? formatNumber(token.views) : token.views,
           subscribers: typeof token.subscribers === 'number' ? formatNumber(token.subscribers) : token.subscribers,
+          likes: typeof token.likes === 'number' ? formatNumber(token.likes) : token.likes || '0',
           // Ensure we have the address field for compatibility
           address: token.tokenAddress || token.address || '',
         }));
@@ -270,77 +268,11 @@ const DashboardPage: React.FC = () => {
       }
     };
 
-    // Fetch trending creators using our new API client
-    const loadTrendingCreators = async () => {
-      try {
-        setIsLoadingCreators(true);
-        
-        // Fetch trending US creators with 24h timeframe
-        const creators = await fetchTrendingCreators('US', '24h');
-        console.log('Fetched trending creators:', creators);
-        
-        if (creators.length > 0) {
-          setTrendingCreators(creators);
-        } else {
-          // Create mock data for trending creators if API returns empty
-          const mockCreators = mockCreatorTokens.map(token => ({
-            id: token.id,
-            channelId: token.id,
-            name: token.name,
-            symbol: token.symbol,
-            price: token.price,
-            priceChange: token.priceChange,
-            imageUrl: token.imageUrl,
-            subscribers: typeof token.subscribers === 'number' ? token.subscribers : parseInt(token.subscribers.replace(/[KM]/g, '')),
-            views: typeof token.views === 'number' ? token.views : parseInt(token.views.replace(/[KM]/g, '')),
-            likes: 0,
-            tokenAddress: token.address,
-            channelUrl: `https://youtube.com/channel/${token.channelId || token.id}`,
-            videoCount: 0,
-            region: 'US',
-            engagementScore: Math.random() * 10,
-            category: '',
-            hasToken: true,
-            lastUpdated: new Date().toISOString()
-          }));
-          setTrendingCreators(mockCreators);
-        }
-        
-        setIsLoadingCreators(false);
-      } catch (err) {
-        console.error('Error fetching trending creators:', err);
-        // Fallback to mock data
-        const mockCreators = mockCreatorTokens.map(token => ({
-          id: token.id,
-          channelId: token.id,
-          name: token.name,
-          symbol: token.symbol,
-          price: token.price,
-          priceChange: token.priceChange,
-          imageUrl: token.imageUrl,
-          subscribers: typeof token.subscribers === 'number' ? token.subscribers : parseInt(token.subscribers.replace(/[KM]/g, '')),
-          views: typeof token.views === 'number' ? token.views : parseInt(token.views.replace(/[KM]/g, '')),
-          likes: 0,
-          tokenAddress: token.address,
-          channelUrl: `https://youtube.com/channel/${token.channelId || token.id}`,
-          videoCount: 0,
-          region: 'US',
-          engagementScore: Math.random() * 10,
-          category: '',
-          hasToken: true,
-          lastUpdated: new Date().toISOString()
-        }));
-        setTrendingCreators(mockCreators);
-        setIsLoadingCreators(false);
-      }
-    };
-
     setIsLoading(true);
     
     const loadData = async () => {
       await Promise.all([
         fetchTokens(),
-        loadTrendingCreators(),
         // Add other data loading functions here
       ]);
       
@@ -423,7 +355,7 @@ const DashboardPage: React.FC = () => {
           Your AI-powered platform for creator token trading and insights
         </p>
         {!account && (
-          <Link to="/swap" className="bg-white text-coral-DEFAULT hover:bg-gray-100 font-medium py-2 px-4 rounded-lg inline-block transition duration-150">
+          <Link to="/home" className="bg-coral-light text-white hover:bg-coral-DEFAULT font-medium py-2 px-4 rounded-lg inline-block shadow-md transition duration-150">
             Start Trading
           </Link>
         )}
@@ -489,29 +421,17 @@ const DashboardPage: React.FC = () => {
             </span>
             <span className="text-sm text-gray-500">24h Change</span>
           </div>
-          <Link to="/swap" className="text-coral-DEFAULT hover:text-coral-dark text-sm font-medium">
+          <Link to="/home" className="text-coral-DEFAULT hover:text-coral-dark text-sm font-medium">
             View All Markets →
           </Link>
         </div>
-      </div>
-
-      {/* Top US Creators (24h) */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Top US Creators (24h)</h2>
-          <Link to="/creators" className="text-coral-DEFAULT hover:text-coral-dark text-sm font-medium">
-            View All →
-          </Link>
-        </div>
-        
-        <TopCreators creators={trendingCreators} isLoading={isLoadingCreators} />
       </div>
 
       {/* Trending Creator Tokens */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">Trending Creator Tokens</h2>
-          <Link to="/swap" className="text-coral-DEFAULT hover:text-coral-dark text-sm font-medium">
+          <Link to="/home" className="text-coral-DEFAULT hover:text-coral-dark text-sm font-medium">
             View All →
           </Link>
         </div>

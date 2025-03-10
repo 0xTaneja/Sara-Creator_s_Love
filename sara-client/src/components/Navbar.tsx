@@ -43,16 +43,16 @@ const Navbar: React.FC = () => {
               Home
             </Link>
             <Link 
-              to="/swap" 
-              className={`px-3 py-2 text-sm font-medium ${isActive('/swap') ? 'text-coral-DEFAULT border-b-2 border-coral-DEFAULT' : 'text-gray-700 hover:text-coral-DEFAULT'}`}
-            >
-              Swap
-            </Link>
-            <Link 
               to="/insights" 
               className={`px-3 py-2 text-sm font-medium ${isActive('/insights') ? 'text-coral-DEFAULT border-b-2 border-coral-DEFAULT' : 'text-gray-700 hover:text-coral-DEFAULT'}`}
             >
               Insights
+            </Link>
+            <Link 
+              to="/roadmap" 
+              className={`px-3 py-2 text-sm font-medium ${isActive('/roadmap') ? 'text-coral-DEFAULT border-b-2 border-coral-DEFAULT' : 'text-gray-700 hover:text-coral-DEFAULT'}`}
+            >
+              Roadmap 🚀
             </Link>
           </div>
 
@@ -121,15 +121,6 @@ const Navbar: React.FC = () => {
               Home
             </Link>
             <Link
-              to="/swap"
-              className={`block px-3 py-2 rounded-md text-base font-medium ${
-                isActive('/swap') ? 'text-coral-DEFAULT bg-coral-50' : 'text-gray-700 hover:bg-gray-50 hover:text-coral-DEFAULT'
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Swap
-            </Link>
-            <Link
               to="/insights"
               className={`block px-3 py-2 rounded-md text-base font-medium ${
                 isActive('/insights') ? 'text-coral-DEFAULT bg-coral-50' : 'text-gray-700 hover:bg-gray-50 hover:text-coral-DEFAULT'
@@ -137,6 +128,15 @@ const Navbar: React.FC = () => {
               onClick={() => setMobileMenuOpen(false)}
             >
               Insights
+            </Link>
+            <Link
+              to="/roadmap"
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                isActive('/roadmap') ? 'text-coral-DEFAULT bg-coral-50' : 'text-gray-700 hover:bg-gray-50 hover:text-coral-DEFAULT'
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Roadmap 🚀
             </Link>
           </div>
         </div>

@@ -8,6 +8,7 @@ interface Creator {
   imageUrl: string;
   subscribers: string | number;
   views: string | number;
+  likes?: string | number;
   engagementScore?: number;
   tokenSymbol?: string;
   tokenPrice?: number;
@@ -84,6 +85,11 @@ const TopCreators: React.FC<TopCreatorsProps> = ({ creators, isLoading }) => {
                 <span className="font-medium">{formatNumber(creator.views)}</span>
               </div>
               
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-600">Likes</span>
+                <span className="font-medium">{formatNumber(creator.likes || 0)}</span>
+              </div>
+              
               {creator.tokenSymbol && creator.tokenPrice && (
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-600">Token</span>
@@ -105,7 +111,7 @@ const TopCreators: React.FC<TopCreatorsProps> = ({ creators, isLoading }) => {
               <div className="flex space-x-2">
                 {creator.tokenAddress ? (
                   <Link 
-                    to={`/token/${creator.tokenAddress}`}
+                    to={`/token/${creator.id}`}
                     className="flex-1 bg-coral-DEFAULT hover:bg-coral-dark text-white text-center py-2 px-4 rounded-md text-sm font-medium transition-colors duration-150"
                   >
                     View Token
@@ -120,7 +126,7 @@ const TopCreators: React.FC<TopCreatorsProps> = ({ creators, isLoading }) => {
                 )}
                 
                 <a 
-                  href={`https://youtube.com/channel/${creator.channelId || creator.id}`}
+                  href={`https://www.youtube.com/channel/${creator.channelId || creator.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors duration-150"

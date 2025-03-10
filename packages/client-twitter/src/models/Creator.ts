@@ -71,6 +71,21 @@ const creatorSchema = new mongoose.Schema({
         type: Date, 
         default: Date.now 
     },
+    // New fields for tiered monitoring
+    lastTrendingDate: {
+        type: Date,
+        default: Date.now
+    },
+    monitoringTier: {
+        type: Number,
+        default: 1,
+        min: 1,
+        max: 3
+    },
+    metricsHistory: {
+        type: [metricsSchema],
+        default: []
+    },
     hasToken: {
         type: Boolean,
         default: false
@@ -113,6 +128,17 @@ const creatorSchema = new mongoose.Schema({
 
 // Add a method to update metrics
 creatorSchema.methods.updateMetrics = async function(newMetrics) {
+    // Store current metrics in history before updating
+    if (this.metrics && Object.keys(this.metrics).length > 0) {
+        if (!this.metricsHistory) this.metricsHistory = [];
+        this.metricsHistory.push(this.metrics);
+        
+        // Keep only the last 5 metrics entries
+        if (this.metricsHistory.length > 5) {
+            this.metricsHistory = this.metricsHistory.slice(-5);
+        }
+    }
+    
     this.metrics = { ...this.metrics, ...newMetrics };
     this.lastUpdated = new Date();
     return this.save();

@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import { useWeb3 } from '../contexts/Web3Context';
 import CreatorTokenCard from '../components/CreatorTokenCard';
 import HeroSection from '../components/HeroSection';
+import { API_URL } from '../config';
+import { Token } from '../utils/types';
 
-// Mock data for creator tokens
+// Mock data for creator tokens - same as in TokenDetailsPage
 const mockCreatorTokens = [
   {
-    id: '1',
+    id: '67c9b14b291a6d50d2b1727d', // MrBeast
     name: 'MrBeast',
     symbol: 'BEAST',
     price: 1.24,
@@ -17,9 +19,10 @@ const mockCreatorTokens = [
     subscribers: '250M',
     imageUrl: 'https://yt3.googleusercontent.com/ytc/APkrFKY455xp16s2AIHalRjK60zas-DitxAHmRjQsXPE2A=s176-c-k-c0x00ffffff-no-rj',
     address: '0x1234567890123456789012345678901234567890',
+    channelUrl: 'https://www.youtube.com/channel/UCX6OQ3DkcsbYNE6H8uQQuVA',
   },
   {
-    id: '2',
+    id: '67c9b14b291a6d50d2b1726b', // MKBHD
     name: 'Marques Brownlee',
     symbol: 'MKBHD',
     price: 0.87,
@@ -29,9 +32,10 @@ const mockCreatorTokens = [
     subscribers: '18M',
     imageUrl: 'https://yt3.googleusercontent.com/lkH37D712tiyphnu0Id0D5MwwQ7IRuwgQLVD05iMXlDWO-kDHut3uI4MgIpWJ5xxX0n2Px8A=s176-c-k-c0x00ffffff-no-rj',
     address: '0x2345678901234567890123456789012345678901',
+    channelUrl: 'https://www.youtube.com/channel/UCBJycsmduvYEL83R_U4JriQ',
   },
   {
-    id: '3',
+    id: '67c9b14b291a6d50d2b1725b', // PewDiePie
     name: 'PewDiePie',
     symbol: 'PEWDS',
     price: 1.05,
@@ -41,9 +45,10 @@ const mockCreatorTokens = [
     subscribers: '111M',
     imageUrl: 'https://yt3.googleusercontent.com/5oUY3tashyxfqsjO5SGhjT4dus8FkN9CsAHwXWISFrdPYii1FudD4ICtLfuCw6-THJsJbgoY=s176-c-k-c0x00ffffff-no-rj',
     address: '0x3456789012345678901234567890123456789012',
+    channelUrl: 'https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw',
   },
   {
-    id: '4',
+    id: '67c9b14b291a6d50d2b1724b', // Logan Paul
     name: 'Logan Paul',
     symbol: 'LOGAN',
     price: 0.65,
@@ -53,9 +58,10 @@ const mockCreatorTokens = [
     subscribers: '23M',
     imageUrl: 'https://yt3.googleusercontent.com/ytc/APkrFKZWeMCsx4Q9e_Hm6VKOOOcl3MPTAzqRMfC0GNjm=s176-c-k-c0x00ffffff-no-rj',
     address: '0x4567890123456789012345678901234567890123',
+    channelUrl: 'https://www.youtube.com/channel/UCG8rbF3g2AMX70yOd8vqIZg',
   },
   {
-    id: '5',
+    id: '67c9b14b291a6d50d2b1723b', // KSI
     name: 'KSI',
     symbol: 'KSI',
     price: 0.92,
@@ -65,76 +71,78 @@ const mockCreatorTokens = [
     subscribers: '24M',
     imageUrl: 'https://yt3.googleusercontent.com/zSgb9auUHE_rAkWLmxqRQPGzGHJBYS7J1-Jjk9RTBTJZlYwLqGQmY5yMZ5KmeYlOTvEFYUTjGQ=s176-c-k-c0x00ffffff-no-rj',
     address: '0x5678901234567890123456789012345678901234',
-  },
-  {
-    id: '6',
-    name: 'Linus Tech Tips',
-    symbol: 'LTT',
-    price: 0.78,
-    priceChange: 2.3,
-    views: '1.9M',
-    likes: '120K',
-    subscribers: '15M',
-    imageUrl: 'https://yt3.googleusercontent.com/Vy6KL7EM_apxPSxF0pPy5w_c87YDTOlBQo3MADDF0Wl78QjuM7JdNRTG8PVLWbXKQmqJoEd-=s176-c-k-c0x00ffffff-no-rj',
-    address: '0x6789012345678901234567890123456789012345',
-  },
-  {
-    id: '7',
-    name: 'David Dobrik',
-    symbol: 'DOBRIK',
-    price: 0.83,
-    priceChange: -0.8,
-    views: '2.4M',
-    likes: '190K',
-    subscribers: '18M',
-    imageUrl: 'https://yt3.googleusercontent.com/ytc/APkrFKbXBW-XdPNvlqOeQwWdUEEkQd7sNDXzrzGMl_B2=s176-c-k-c0x00ffffff-no-rj',
-    address: '0x7890123456789012345678901234567890123456',
-  },
-  {
-    id: '8',
-    name: 'Emma Chamberlain',
-    symbol: 'EMMA',
-    price: 0.95,
-    priceChange: 4.2,
-    views: '1.8M',
-    likes: '210K',
-    subscribers: '12M',
-    imageUrl: 'https://yt3.googleusercontent.com/ytc/APkrFKZLzqmOzPiUZScJzwHGcZV7mDnGS0-2bqqEFSFC=s176-c-k-c0x00ffffff-no-rj',
-    address: '0x8901234567890123456789012345678901234567',
-  },
-  {
-    id: '9',
-    name: 'Casey Neistat',
-    symbol: 'CASEY',
-    price: 0.71,
-    priceChange: 1.9,
-    views: '1.5M',
-    likes: '130K',
-    subscribers: '12.5M',
-    imageUrl: 'https://yt3.googleusercontent.com/ytc/APkrFKbWy9-9-_BUEi8UuQQnqZSjsLcT9uKESw_O7YR7=s176-c-k-c0x00ffffff-no-rj',
-    address: '0x9012345678901234567890123456789012345678',
-  },
+    channelUrl: 'https://www.youtube.com/channel/UCVtFOytbRpEvzLjvqGG5gxQ',
+  }
 ];
 
 const HomePage: React.FC = () => {
   const { isConnected } = useWeb3();
-  const [creatorTokens, setCreatorTokens] = useState(mockCreatorTokens);
-  const [isLoading, setIsLoading] = useState(false);
+  const [tokens, setTokens] = useState<Token[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Simulate fetching data
+  // Fetch tokens from API - using the same approach as DashboardPage
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchTokens = async () => {
       setIsLoading(true);
-      // In a real app, you would fetch data from your API or blockchain
-      // For now, we'll just use a timeout to simulate loading
-      setTimeout(() => {
-        setCreatorTokens(mockCreatorTokens);
+      setError(null);
+      
+      try {
+        // Fetch tokens from the same endpoint that works in DashboardPage
+        console.log(`Fetching tokens from ${API_URL}/api/tokens`);
+        const response = await fetch(`${API_URL}/api/tokens`);
+        
+        if (!response.ok) {
+          console.error(`Failed to fetch tokens (status: ${response.status})`);
+          // Fallback to mock data
+          console.log('Using mock data as fallback');
+          setTokens(mockCreatorTokens);
+          setIsLoading(false);
+          return;
+        }
+        
+        const data = await response.json();
+        console.log('Fetched tokens:', data);
+        
+        if (data && Array.isArray(data) && data.length > 0) {
+          // Format the data for display - same approach as DashboardPage
+          const formattedTokens = data.map((token: any) => ({
+            ...token,
+            // Format numbers for display
+            views: typeof token.views === 'number' ? formatNumber(token.views) : token.views,
+            subscribers: typeof token.subscribers === 'number' ? formatNumber(token.subscribers) : token.subscribers,
+            likes: typeof token.likes === 'number' ? formatNumber(token.likes) : token.likes || '0',
+            // Ensure we have the address field for compatibility
+            address: token.tokenAddress || token.address || '',
+          }));
+          
+          setTokens(formattedTokens);
+        } else {
+          // Fallback to mock data if no tokens found
+          setTokens(mockCreatorTokens);
+        }
+      } catch (err) {
+        console.error('Error fetching tokens:', err);
+        // Fallback to mock data
+        console.log('Using mock data as fallback due to error');
+        setTokens(mockCreatorTokens);
+      } finally {
         setIsLoading(false);
-      }, 1000);
+      }
     };
 
-    fetchData();
+    fetchTokens();
   }, []);
+
+  // Format large numbers to K/M format
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+  };
 
   return (
     <div className="space-y-10">
@@ -142,20 +150,25 @@ const HomePage: React.FC = () => {
       
       <section>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Featured Creators</h2>
-          <Link to="/swap" className="text-coral-DEFAULT hover:text-coral-dark font-medium">
-            View All
-          </Link>
+          <h2 className="text-2xl font-bold text-gray-900">All Creators</h2>
         </div>
         
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-coral-DEFAULT"></div>
           </div>
+        ) : error ? (
+          <div className="flex justify-center items-center h-64">
+            <p className="text-red-500">{error}</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {creatorTokens.slice(0, 8).map((token) => (
-              <CreatorTokenCard key={token.id} token={token} />
+            {tokens.map((token) => (
+              <div key={token.id} className="h-full">
+                <CreatorTokenCard 
+                  token={token} 
+                />
+              </div>
             ))}
           </div>
         )}
