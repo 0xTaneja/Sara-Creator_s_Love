@@ -45,6 +45,48 @@ Sara AI Agent is a revolutionary platform for the creator economy that combines:
 - AI-driven market analysis and price predictions
 - Responsive design for desktop and mobile
 
+### Development Roadmap
+
+#### Phase 1: MVP Completed (Sonic DeFAI Hackathon)
+- ✅ AI-Powered Creator Token Market – Tokens minted based on engagement
+- ✅ Buy/Sell Creator Tokens – Fully functional DEX with trading
+- ✅ AI Market Insights – Dynamic insights based on trends
+- ✅ Liquidity Management – AI-driven liquidity for stable trading
+- ✅ Trade History Tracking – Users can track past trades
+- ✅ Dynamic Trending Leaderboard – Top creator tokens ranked
+- ✅ Roadmap & Future Vision UI – Communicates future plans
+
+#### Phase 2: Post-Hackathon Enhancements (Coming Soon)
+1. **Live TradingView Chart Integration** - Next Major Update
+   - Fetch historical & real-time price data
+   - Display charts with candlestick & market trends
+   - ETA: Next Major Update
+
+2. **AI-Powered Auto-Trading Bot** - Coming Soon
+   - AI analyzes engagement & executes trades autonomously
+   - Users set risk preferences; AI handles buy/sell strategies
+   - ETA: Q2 2025
+
+3. **Dynamic AI Sentiment Analysis for Token Prices**
+   - Fetch real-time YouTube/Twitter/Reddit sentiment data
+   - Predict token price movements based on community hype
+   - ETA: Mid-2025
+
+4. **Multi-Chain Expansion**
+   - Deploy Sara AI Agent on Mainnet
+   - Support more creator economies across Web3 (Aptos, Mantle, More L2s)
+   - ETA: Late 2025
+
+5. **Gamified Social Trading**
+   - Users can predict token movements & earn rewards
+   - AI-driven market competitions to drive engagement
+   - ETA: 2026
+
+6. **AI Chatbot for Personalized Trading Insights**
+   - AI chatbot that provides real-time trading suggestions
+   - Conversational AI guides users in token investments
+   - ETA: 2026
+
 ### Contract Addresses
 
 | Contract | Network | Address |
