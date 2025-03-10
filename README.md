@@ -1,4 +1,3 @@
-
 ## Sara AI Agent
 
 Sara is an AI-powered social market maker that analyzes creator engagement metrics, market trends, and social sentiment to provide real-time insights and predictions for Creator Coins.
@@ -45,5 +44,15 @@ Sara AI Agent is a revolutionary platform for the creator economy that combines:
 - Real-time price updates and market data
 - AI-driven market analysis and price predictions
 - Responsive design for desktop and mobile
+
+### Contract Addresses
+
+| Contract | Network | Address |
+|----------|---------|---------|
+| SaraDEX | Sonic Testnet | `0x8E1e5D0e4F5aBc92DB621A6692e13D26dB1CA361` |
+| CORAL Token | Sonic Testnet | `0x5f9412906C9A5641f9CC22BA41ECB3a653E8B7a0` |
+| Creator Token Factory | Sonic Testnet | `0xD5b47fF2A51D04D29A2b3476D1A350bDDCB677c7` |
+
+> **Note**: These contracts are currently deployed on Sonic Testnet. Mainnet addresses will be provided upon official launch.
 
 For more information, check out the [Sara Client README](./sara-client/README.md).

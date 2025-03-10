@@ -93,6 +93,16 @@ src/
 
 The application interacts with the SaraDEX smart contract deployed on the Sonic Testnet. The contract address and ABI are configured in the Web3Context.
 
+## Contract Addresses
+
+| Contract | Network | Address |
+|----------|---------|---------|
+| SaraDEX | Sonic Testnet | `0x8E1e5D0e4F5aBc92DB621A6692e13D26dB1CA361` |
+| CORAL Token | Sonic Testnet | `0x5f9412906C9A5641f9CC22BA41ECB3a653E8B7a0` |
+| Creator Token Factory | Sonic Testnet | `0xD5b47fF2A51D04D29A2b3476D1A350bDDCB677c7` |
+
+> **Note**: These contracts are currently deployed on Sonic Testnet. Mainnet addresses will be provided upon official launch.
+
 ## Roadmap
 
 Visit our [Roadmap](/roadmap) to see our future development plans and upcoming features.
