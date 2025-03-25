@@ -93,7 +93,7 @@ Sara AI Agent is a revolutionary platform for the creator economy that combines:
 |----------|---------|---------|
 | SaraDEX | Sonic Testnet | `0xc2600BE1111c8696966726b8cee571E048aFe962` |
 | CORAL Token | Sonic Testnet | `0x5f9412906C9A5641f9CC22BA41ECB3a653E8B7a0` |
-| Creator Token Factory | Sonic Testnet | `0xD5b47fF2A51D04D29A2b3476D1A350bDDCB677c7` |
+| Creator Token Factory | Sonic Testnet | `0xAF93888cbD250300470A1618206e036E11470149` |
 | SARA_TOKEN_ROUTER_ADDRESS | Sonic Testnet | `0xAFeFE032F4041b8cB6b42b23e51011061B578180` |
 | SARA_LIQUIDITY_MANAGER_ADDRESS | Sonic Testnet | `0xe3C3aa37b0A2cc0eE70a7Bfc41e6c46Eea748562` |
 
